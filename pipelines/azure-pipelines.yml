@@ -1,0 +1,160 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - release/*
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  solution: 'OAM.sln'
+  buildConfiguration: 'Release'
+  dotnetVersion: '10.x'
+  nodeVersion: '20.x'
+
+stages:
+  - stage: Build
+    displayName: 'Build & Test'
+    jobs:
+      - job: BuildAndTest
+        displayName: 'Build, Test, Publish'
+        steps:
+          - task: UseDotNet@2
+            displayName: 'Installer .NET SDK'
+            inputs:
+              packageType: 'sdk'
+              version: '$(dotnetVersion)'
+
+          - task: NodeTool@0
+            displayName: 'Installer Node.js'
+            inputs:
+              versionSpec: '$(nodeVersion)'
+
+          # Restauration NuGet
+          - task: DotNetCoreCLI@2
+            displayName: 'dotnet restore'
+            inputs:
+              command: 'restore'
+              projects: '$(solution)'
+
+          # Build backend
+          - task: DotNetCoreCLI@2
+            displayName: 'dotnet build'
+            inputs:
+              command: 'build'
+              projects: '$(solution)'
+              arguments: '--configuration $(buildConfiguration) --no-restore'
+
+          # Tests
+          - task: DotNetCoreCLI@2
+            displayName: 'dotnet test'
+            inputs:
+              command: 'test'
+              projects: 'tests/**/*.csproj'
+              arguments: '--configuration $(buildConfiguration) --no-build --logger trx --results-directory $(Agent.TempDirectory)/TestResults'
+
+          - task: PublishTestResults@2
+            displayName: 'Publier résultats de tests'
+            condition: always()
+            inputs:
+              testResultsFormat: 'VSTest'
+              testResultsFiles: '$(Agent.TempDirectory)/TestResults/*.trx'
+
+          # Build frontend Vue.js
+          - script: |
+              cd src/OAM.Frontend
+              npm ci
+              npm run build
+            displayName: 'Build Frontend Vue.js'
+
+          # Publish API (inclut wwwroot avec le frontend buildé)
+          - task: DotNetCoreCLI@2
+            displayName: 'dotnet publish API'
+            inputs:
+              command: 'publish'
+              projects: 'src/OAM.Api/OAM.Api.csproj'
+              arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/api'
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publier artefacts'
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)/api'
+              ArtifactName: 'oam-api'
+
+  # Déploiement SAT
+  - stage: Deploy_SAT
+    displayName: 'Déploiement SAT'
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    jobs:
+      - deployment: DeploySAT
+        displayName: 'Déployer sur SAT'
+        environment: 'SAT'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: IISWebAppDeploymentOnMachineGroup@0
+                  displayName: 'Déployer sur IIS SAT'
+                  inputs:
+                    WebSiteName: 'OAM-SAT'
+                    Package: '$(Pipeline.Workspace)/oam-api/**/*.zip'
+
+  # Déploiement ACCP
+  - stage: Deploy_ACCP
+    displayName: 'Déploiement ACCP'
+    dependsOn: Deploy_SAT
+    condition: succeeded()
+    jobs:
+      - deployment: DeployACCP
+        displayName: 'Déployer sur ACCP'
+        environment: 'ACCP'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: IISWebAppDeploymentOnMachineGroup@0
+                  displayName: 'Déployer sur IIS ACCP'
+                  inputs:
+                    WebSiteName: 'OAM-ACCP'
+                    Package: '$(Pipeline.Workspace)/oam-api/**/*.zip'
+
+  # Déploiement IT
+  - stage: Deploy_IT
+    displayName: 'Déploiement IT'
+    dependsOn: Deploy_ACCP
+    condition: succeeded()
+    jobs:
+      - deployment: DeployIT
+        displayName: 'Déployer sur IT'
+        environment: 'IT'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: IISWebAppDeploymentOnMachineGroup@0
+                  displayName: 'Déployer sur IIS IT'
+                  inputs:
+                    WebSiteName: 'OAM-IT'
+                    Package: '$(Pipeline.Workspace)/oam-api/**/*.zip'
+
+  # Déploiement PROD
+  - stage: Deploy_PROD
+    displayName: 'Déploiement PROD'
+    dependsOn: Deploy_IT
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'))
+    jobs:
+      - deployment: DeployPROD
+        displayName: 'Déployer sur PROD'
+        environment: 'PROD'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: IISWebAppDeploymentOnMachineGroup@0
+                  displayName: 'Déployer sur IIS PROD'
+                  inputs:
+                    WebSiteName: 'OAM-PROD'
+                    Package: '$(Pipeline.Workspace)/oam-api/**/*.zip'

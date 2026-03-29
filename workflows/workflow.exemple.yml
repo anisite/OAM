@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=workflow-schema.json
+nom: TraitementRendezVous
+description: Workflow exemple - Recherche et notification d'un rendez-vous
+equipe: Equipe-Demo
+
+variables:
+  rendezVousId: "{{ input.rendezVousId }}"
+
+taches:
+  - id: rechercherRendezVous
+    nom: Rechercher le rendez-vous
+    type: http
+    httpClientId: getRendezVousApi
+    mock: rechercherRendezVousMock
+    parametres:
+      rendezVousId: "{{ rendezVousId }}"
+    output:
+      rendezVous: "$.data.rendezVous"
+
+  - id: validerRendezVous
+    nom: Valider les données du rendez-vous
+    type: condition
+    parametres:
+      expression: "{{ rendezVous }}"
+    branches:
+      - condition: "{{ rendezVous }}"
+        aller: notifierClient
+      - condition: "true"
+        aller: aucunRendezVous
+
+  - id: notifierClient
+    nom: Notifier le client
+    type: http
+    httpClientId: notifierClientApi
+    mock: notifierClientMock
+    parametres:
+      rendezVousId: "{{ rendezVousId }}"
+      courriel: "{{ tache.rechercherRendezVous.output.courriel }}"
+    suivant: terminer
+
+  - id: aucunRendezVous
+    nom: Aucun rendez-vous trouvé
+    type: hook
+    hook: true
+
+  - id: terminer
+    nom: Finaliser le traitement
+    type: condition
+    parametres:
+      expression: "true"

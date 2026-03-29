@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/OAM -type f -name *.sln -o -name *.csproj -o -name package.json -o -name *.yml -o -name *.yaml -o -name Dockerfile -o -name docker-compose.yml)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(dotnet --version)",
+      "Bash(where dotnet:*)",
+      "Read(//c/Program Files/dotnet/**)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" --version)",
+      "Bash(export PATH=\"/c/Program Files/dotnet:$PATH\")",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet nuget:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet list:*)",
+      "Bash(export 'PATH=/c/Program Files/dotnet:$PATH')",
+      "Bash(dotnet run:*)",
+      "Read(//c/Users/infol/.nuget/packages/yamlhttpclient/2.1.1/**)",
+      "Bash(dotnet tool:*)",
+      "Bash(ilspycmd -l /c/Users/infol/.nuget/packages/yamlhttpclient/2.1.1/lib/net10.0/YamlHttpClient.dll)",
+      "Bash(npm create:*)",
+      "Bash(npx create-vite@5 OAM.Frontend --template vue)",
+      "Bash(mkdir -p /c/OAM/src/OAM.Frontend)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(dotnet test:*)",
+      "Bash(sqlcmd -?)",
+      "Bash(where sqlcmd:*)",
+      "Bash(sc query:*)"
+    ]
+  }
+}

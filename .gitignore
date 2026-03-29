@@ -1,0 +1,33 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.sln.docstates
+.vs/
+*.DotSettings.user
+
+## NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+## Node/Frontend
+node_modules/
+dist/
+src/OAM.Api/wwwroot/
+
+## IDE
+.idea/
+*.swp
+*.swo
+
+## OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+## Build output
+[Dd]ebug/
+[Rr]elease/
+TestResults/

@@ -21,7 +21,7 @@
     </div>
 
     <!-- Tâches -->
-    <utd-section titre="Tâches">
+    <utd-section reduit="false" titre="Tâches">
       <div v-for="tache in instance.taches" :key="tache.id" class="tache-card mb-16">
         <div class="tache-header">
           <strong>{{ tache.nomTache }}</strong>

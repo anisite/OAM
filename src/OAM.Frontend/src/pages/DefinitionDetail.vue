@@ -15,11 +15,11 @@
       </div>
     </div>
 
-    <utd-section titre="Définition YAML">
+    <utd-section reduit="false" titre="Définition YAML">
       <pre class="yaml-block">{{ yamlContenu }}</pre>
     </utd-section>
 
-    <utd-section titre="Historique des versions">
+    <utd-section reduit="false" titre="Historique des versions">
       <table class="utd-table" v-if="versions.length">
         <thead>
           <tr>
@@ -38,7 +38,7 @@
       </table>
     </utd-section>
 
-    <utd-section titre="Actions">
+    <utd-section reduit="false" titre="Actions">
       <button class="utd-btn utd-btn-principal" @click="demarrer">
         Démarrer une instance
       </button>

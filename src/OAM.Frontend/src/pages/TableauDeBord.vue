@@ -4,26 +4,26 @@
 
     <div class="utd-row utd-row-cols-1 utd-row-cols-md-3 mb-32">
       <div class="utd-col">
-        <utd-section titre="Définitions actives">
+        <utd-section reduit="false" titre="Définitions actives">
           <p class="stat-nombre">{{ definitions.length }}</p>
           <router-link to="/definitions">Voir les définitions</router-link>
         </utd-section>
       </div>
       <div class="utd-col">
-        <utd-section titre="Instances en cours">
+        <utd-section reduit="false" titre="Instances en cours">
           <p class="stat-nombre">{{ instancesEnCours.length }}</p>
           <router-link to="/instances?etat=EnCours">Voir les instances</router-link>
         </utd-section>
       </div>
       <div class="utd-col">
-        <utd-section titre="Instances en erreur">
+        <utd-section reduit="false" titre="Instances en erreur">
           <p class="stat-nombre stat-erreur">{{ instancesEnErreur.length }}</p>
           <router-link to="/instances?etat=EnErreur">Gérer les erreurs</router-link>
         </utd-section>
       </div>
     </div>
 
-    <utd-section titre="Activité récente">
+    <utd-section reduit="false" titre="Activité récente">
       <table class="utd-table" v-if="instances.length">
         <thead>
           <tr>

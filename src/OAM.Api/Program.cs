@@ -4,11 +4,16 @@ using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OAM.Api.Auth;
+using OAM.Api.Features.Auth;
+using OAM.Api.Features.Definitions;
+using OAM.Api.Features.Instances;
+using OAM.Api.Features.Mocks;
 using OAM.Api.Hubs;
 using OAM.Domain.Interfaces;
 using OAM.Infrastructure;
 using OAM.Infrastructure.Data;
 using OAM.Workflow.Core;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,10 +71,9 @@ builder.Services.AddOamWorkflowCore();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<INotificateurWorkflow, SignalRNotificateur>();
 
-// Controllers
-builder.Services.AddControllers()
-    .AddJsonOptions(opts =>
-        opts.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+// Minimal API — sérialisation des enums en string
+builder.Services.ConfigureHttpJsonOptions(opts =>
+    opts.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 
 // CORS pour le frontend Vue.js
@@ -87,6 +91,17 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Charger la configuration des clients HTTP
+var configHttp = app.Services.GetRequiredService<OAM.Workflow.Core.Connecteurs.ConfigurationYamlHttp>();
+var httpClientsEnv = Path.Combine(Directory.GetCurrentDirectory(), $"http-clients.{app.Environment.EnvironmentName}.yml");
+var httpClientsBase = Path.Combine(Directory.GetCurrentDirectory(), "http-clients.yml");
+var httpClientsPath = File.Exists(httpClientsEnv) ? httpClientsEnv : httpClientsBase;
+if (File.Exists(httpClientsPath))
+{
+    //configHttp.ChargerDepuisYaml(File.ReadAllText(httpClientsPath));
+    app.Logger.LogInformation("Clients HTTP chargés depuis {Path}", httpClientsPath);
+}
+
 // En développement : créer la BD et seeder les mocks automatiquement
 if (app.Environment.IsDevelopment())
 {
@@ -94,6 +109,7 @@ if (app.Environment.IsDevelopment())
     var db = scope.ServiceProvider.GetRequiredService<OamDbContext>();
     db.Database.EnsureCreated();
     app.MapOpenApi();
+    app.MapScalarApiReference(options => options.WithTitle("OAM — Orchestrateur d'Actions Métier"));
 
     // Auto-seed des mocks depuis seed-mocks.json
     var seedPath = Path.Combine(AppContext.BaseDirectory, "seed-mocks.json");
@@ -118,7 +134,10 @@ app.UseAuthorization();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapControllers();
+app.MapAuth();
+app.MapDefinitions();
+app.MapInstances();
+app.MapMocks();
 app.MapHub<WorkflowHub>("/hubs/workflow");
 
 // Fallback SPA : renvoyer index.html pour les routes Vue.js

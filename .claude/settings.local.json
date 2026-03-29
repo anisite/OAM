@@ -42,7 +42,8 @@
       "Bash(curl -s \"https://lively-cliff-018a9540f.azurestaticapps.net/data/composants.json\")",
       "WebFetch(domain:github.com)",
       "Bash(taskkill /F /IM dotnet.exe)",
-      "Bash(cat /c/OAM/src/OAM.Api/logs/*.log)"
+      "Bash(cat /c/OAM/src/OAM.Api/logs/*.log)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" add package Scalar.AspNetCore)"
     ]
   }
 }

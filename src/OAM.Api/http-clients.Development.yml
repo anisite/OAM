@@ -1,0 +1,20 @@
+# Surcharge des clients HTTP pour le développement local
+# Ce fichier remplace http-clients.yml en environnement Development
+
+httpClient:
+  getRendezVousApi:
+    method: GET
+    url: "http://localhost:3001/rendezvous/{rendezVousId}"
+    headers:
+      Accept: application/json
+
+  notifierClientApi:
+    method: POST
+    url: "http://localhost:3001/notifications"
+    headers:
+      Content-Type: application/json
+    body: |
+      {
+        "rendezVousId": "{rendezVousId}",
+        "courriel": "{courriel}"
+      }

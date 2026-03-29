@@ -1,0 +1,21 @@
+# Configuration des clients HTTP par identifiant (httpClientId)
+# Référencé dans les workflows YAML via : httpClientId: <id>
+# Les valeurs peuvent contenir des variables Handlebars résolues au runtime
+
+httpClient:
+  getRendezVousApi:
+    method: GET
+    url: "https://api.exemple.com/rendezvous/{rendezVousId}"
+    headers:
+      Accept: application/json
+
+  notifierClientApi:
+    method: POST
+    url: "https://api.exemple.com/notifications"
+    headers:
+      Content-Type: application/json
+    body: |
+      {
+        "rendezVousId": "{rendezVousId}",
+        "courriel": "{courriel}"
+      }

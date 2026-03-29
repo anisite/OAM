@@ -29,6 +29,10 @@ public class GestionnaireMock : IMockResolver
         }
     }
 
+    public void RetirerMock(string id) => _catalogue.Remove(id);
+
+    public void ViderMocks() => _catalogue.Clear();
+
     public void AjouterMock(string id, string? condition, string reponseJson)
     {
         if (!_catalogue.TryGetValue(id, out var entries))

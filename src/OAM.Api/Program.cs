@@ -67,7 +67,9 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<INotificateurWorkflow, SignalRNotificateur>();
 
 // Controllers
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 
 // CORS pour le frontend Vue.js
@@ -85,13 +87,27 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// En développement : créer la BD automatiquement
+// En développement : créer la BD et seeder les mocks automatiquement
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<OamDbContext>();
     db.Database.EnsureCreated();
     app.MapOpenApi();
+
+    // Auto-seed des mocks depuis seed-mocks.json
+    var seedPath = Path.Combine(AppContext.BaseDirectory, "seed-mocks.json");
+    if (!File.Exists(seedPath))
+        seedPath = Path.Combine(Directory.GetCurrentDirectory(), "seed-mocks.json");
+    if (File.Exists(seedPath))
+    {
+        var gestionnaire = app.Services.GetRequiredService<OAM.Workflow.Core.Engine.GestionnaireMock>();
+        var entries = System.Text.Json.JsonSerializer.Deserialize<List<SeedMockEntry>>(
+            File.ReadAllText(seedPath),
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        entries?.ForEach(e => gestionnaire.AjouterMock(e.Id, e.Condition, e.ReponseJson));
+        app.Logger.LogInformation("Mocks seedés depuis {Path} ({Count} entrées)", seedPath, entries?.Count ?? 0);
+    }
 }
 
 app.UseCors("Frontend");
@@ -109,3 +125,5 @@ app.MapHub<WorkflowHub>("/hubs/workflow");
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+internal record SeedMockEntry(string Id, string? Condition, string ReponseJson);

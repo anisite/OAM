@@ -13,7 +13,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function obtenirToken() {
     try {
-      const response = await fetch('/api/auth/token', { credentials: 'include' })
+      // En dev, utiliser dev-token (pas de NTLM) ; en prod, NTLM via /api/auth/token
+      const url = import.meta.env.DEV ? '/api/auth/dev-token' : '/api/auth/token'
+      const response = await fetch(url, { credentials: 'include' })
       if (response.ok) {
         const data = await response.json()
         token.value = data.token

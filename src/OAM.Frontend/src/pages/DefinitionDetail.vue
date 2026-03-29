@@ -20,7 +20,7 @@
     </utd-section>
 
     <utd-section titre="Historique des versions">
-      <table class="utd-tableau" v-if="versions.length">
+      <table class="utd-table" v-if="versions.length">
         <thead>
           <tr>
             <th>Hash</th>

@@ -15,8 +15,43 @@ namespace OAM.Api.Auth;
 /// </summary>
 [ApiController]
 [Route("api/auth")]
-public class AuthController(IOptions<JwtSettings> jwtSettings) : ControllerBase
+public class AuthController(IOptions<JwtSettings> jwtSettings, IWebHostEnvironment env) : ControllerBase
 {
+    /// <summary>
+    /// Endpoint dev uniquement : génère un JWT sans authentification NTLM.
+    /// </summary>
+    [HttpGet("dev-token")]
+    [AllowAnonymous]
+    public IActionResult ObtenirTokenDev()
+    {
+        if (!env.IsDevelopment())
+            return NotFound();
+
+        var settings = jwtSettings.Value;
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.Name, Environment.UserName),
+            new(ClaimTypes.AuthenticationMethod, "Dev"),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settings.Secret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: settings.Issuer,
+            audience: settings.Audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(settings.ExpirationMinutes),
+            signingCredentials: creds);
+
+        return Ok(new
+        {
+            token = new JwtSecurityTokenHandler().WriteToken(token),
+            expiration = token.ValidTo,
+            utilisateur = Environment.UserName
+        });
+    }
+
     [HttpGet("token")]
     [Authorize(AuthenticationSchemes = NegotiateDefaults.AuthenticationScheme)]
     public IActionResult ObtenirToken()

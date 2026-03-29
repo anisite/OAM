@@ -1,20 +1,7 @@
 <template>
   <div>
     <h1>Définitions de workflows</h1>
-    <p>Gabarits de workflows gradués pour les équipes autorisées.</p>
-
-    <div class="utd-row mb-32">
-      <div class="utd-col">
-        <utd-champ-form libelle="Filtrer par équipe">
-          <select @change="filtrerEquipe($event.target.value)">
-            <option value="">Toutes les équipes</option>
-            <option v-for="eq in equipes" :key="eq" :value="eq">{{ eq }}</option>
-          </select>
-        </utd-champ-form>
-      </div>
-    </div>
-
-    <table class="utd-tableau" v-if="definitions.length">
+    <table ref="tableRef" class="utd-table" style="width:100%">
       <thead>
         <tr>
           <th>Nom</th>
@@ -25,48 +12,58 @@
           <th>Actions</th>
         </tr>
       </thead>
-      <tbody>
-        <tr v-for="def in definitions" :key="def.id">
-          <td>
-            <router-link :to="`/definitions/${def.id}`">{{ def.nom }}</router-link>
-          </td>
-          <td>{{ def.description || '—' }}</td>
-          <td>{{ def.equipe || '—' }}</td>
-          <td><code>{{ def.hashVersion.substring(0, 8) }}</code></td>
-          <td>{{ formatDate(def.dateModification) }}</td>
-          <td>
-            <button class="utd-btn utd-btn-secondaire utd-btn-sm"
-                    @click="lancerWorkflow(def.id)">Démarrer</button>
-          </td>
-        </tr>
-      </tbody>
     </table>
-    <p v-else-if="!store.chargement">Aucune définition trouvée.</p>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useWorkflowStore } from '../stores/workflow'
 import { useRouter } from 'vue-router'
 
 const store = useWorkflowStore()
 const router = useRouter()
-const definitions = computed(() => store.definitions)
-const equipes = computed(() => [...new Set(store.definitions.map(d => d.equipe).filter(Boolean))])
+const tableRef = ref(null)
+let dtInstance = null
 
 function formatDate(d) {
   return d ? new Date(d).toLocaleString('fr-CA') : ''
 }
 
-function filtrerEquipe(equipe) {
-  store.chargerDefinitions(equipe || undefined)
+function initDatatable() {
+  if (dtInstance) { dtInstance.destroy(); dtInstance = null }
+  if (window.utd?.datatables) window.utd.datatables.definirParametresDefaut()
+  dtInstance = new window.DataTable(tableRef.value, {
+    data: store.definitions,
+    columns: [
+      { data: 'nom', render: (d, t, row) => t === 'display' ? `<a href="/definitions/${row.id}" class="dt-nav">${d}</a>` : d },
+      { data: 'description', defaultContent: '—' },
+      { data: 'equipe', defaultContent: '—' },
+      { data: 'hashVersion', orderable: false, render: (d, t) => t === 'display' ? `<code>${d.substring(0, 8)}</code>` : d },
+      { data: 'dateModification', render: (d, t) => t === 'display' ? formatDate(d) : d },
+      {
+        data: null, orderable: false, searchable: false,
+        render: (d, t, row) => `<button class="utd-btn utd-btn-secondaire utd-btn-sm" data-def-id="${row.id}">Démarrer</button>`
+      }
+    ]
+  })
 }
 
-async function lancerWorkflow(defId) {
-  const instance = await store.demarrerWorkflow(defId)
-  if (instance) router.push(`/instances/${instance.id}`)
-}
+onMounted(async () => {
+  await store.chargerDefinitions()
+  initDatatable()
 
-onMounted(() => store.chargerDefinitions())
+  tableRef.value.addEventListener('click', async e => {
+    const a = e.target.closest('a.dt-nav')
+    if (a) { e.preventDefault(); router.push(a.getAttribute('href')) }
+
+    const btn = e.target.closest('[data-def-id]')
+    if (btn) {
+      const instance = await store.demarrerWorkflow(btn.dataset.defId)
+      if (instance) router.push(`/instances/${instance.id}`)
+    }
+  })
+})
+
+onUnmounted(() => { if (dtInstance) { dtInstance.destroy(); dtInstance = null } })
 </script>

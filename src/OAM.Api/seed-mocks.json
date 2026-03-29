@@ -1,0 +1,12 @@
+[
+  {
+    "id": "rechercherRendezVousMock",
+    "condition": null,
+    "reponseJson": "{\"data\":{\"rendezVous\":{\"id\":\"RDV-001\",\"date\":\"2026-04-15T10:00:00\",\"client\":\"Jean Dupont\",\"courriel\":\"jean.dupont@example.com\"}}}"
+  },
+  {
+    "id": "notifierClientMock",
+    "condition": null,
+    "reponseJson": "{\"data\":{\"succes\":true,\"messageId\":\"MSG-12345\"}}"
+  }
+]

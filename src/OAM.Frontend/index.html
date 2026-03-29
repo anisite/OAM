@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OAM — Orchestrateur d'Actions Métier</title>
 
+  <!-- DataTables - AVANT UTD (requis) -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css">
+
   <!-- UTD Web Components - CDN -->
   <link rel="preload" as="font" href="https://cdn.jsdelivr.net/gh/MTESSDev/utd-webcomponents@4.1.0/dist/fonts/open-sans-v18-latin-regular.woff2" type="font/woff2" crossorigin="anonymous">
   <link rel="preload" as="font" href="https://cdn.jsdelivr.net/gh/MTESSDev/utd-webcomponents@4.1.0/dist/fonts/open-sans-v18-latin-600.woff2" type="font/woff2" crossorigin="anonymous">
@@ -14,6 +17,11 @@
 </head>
 <body>
   <div id="app"></div>
+
+  <!-- DataTables - AVANT UTD (requis) -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+
   <script src="https://cdn.jsdelivr.net/gh/MTESSDev/utd-webcomponents@4.1.0/dist/js/utd-webcomponents.min.js"></script>
   <script type="module" src="/src/main.js"></script>
 </body>

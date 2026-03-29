@@ -27,7 +27,21 @@
       "Bash(dotnet test:*)",
       "Bash(sqlcmd -?)",
       "Bash(where sqlcmd:*)",
-      "Bash(sc query:*)"
+      "Bash(sc query:*)",
+      "Bash(curl -s http://localhost:5000/api/definitions)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/api/definitions)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/api/auth/dev-token)",
+      "Bash(taskkill //F //IM \"OAM.Api.exe\")",
+      "Bash(taskkill //F //IM \"dotnet.exe\")",
+      "Bash(curl -s http://localhost:5000/api/auth/dev-token)",
+      "WebFetch(domain:lively-cliff-018a9540f.azurestaticapps.net)",
+      "Bash(curl -s \"https://lively-cliff-018a9540f.azurestaticapps.net/composants/navigation/menuhorizontal\")",
+      "Bash(curl -s \"https://lively-cliff-018a9540f.azurestaticapps.net/composants/navigation/menuhorizontal\" -H \"Accept: application/json\")",
+      "Bash(curl -s \"https://lively-cliff-018a9540f.azurestaticapps.net/api/composants/menuhorizontal\")",
+      "Bash(curl -s \"https://lively-cliff-018a9540f.azurestaticapps.net/js/siteDemo.js?v=4.1.0\")",
+      "Bash(curl -s \"https://lively-cliff-018a9540f.azurestaticapps.net/data/composants.json\")",
+      "WebFetch(domain:github.com)",
+      "Bash(taskkill /F /IM dotnet.exe)"
     ]
   }
 }

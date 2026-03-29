@@ -24,7 +24,7 @@
     </div>
 
     <utd-section titre="Activité récente">
-      <table class="utd-tableau" v-if="instances.length">
+      <table class="utd-table" v-if="instances.length">
         <thead>
           <tr>
             <th>Workflow</th>
@@ -56,7 +56,7 @@ import { useSignalR } from '../composables/useSignalR'
 import EtatBadge from '../components/EtatBadge.vue'
 
 const store = useWorkflowStore()
-const { onChangementEtatGlobal, offAll } = useSignalR()
+const { onChangementEtatGlobal, onTacheEnErreurGlobal, onWorkflowTermineGlobal, offAll } = useSignalR()
 
 const definitions = computed(() => store.definitions)
 const instances = computed(() => store.instances)
@@ -74,10 +74,10 @@ onMounted(async () => {
     store.chargerEnErreur()
   ])
 
-  onChangementEtatGlobal(() => {
-    store.chargerInstances()
-    store.chargerEnErreur()
-  })
+  const rafraichir = () => { store.chargerInstances(); store.chargerEnErreur() }
+  onChangementEtatGlobal(rafraichir)
+  onTacheEnErreurGlobal(rafraichir)
+  onWorkflowTermineGlobal(rafraichir)
 })
 
 onUnmounted(() => offAll())

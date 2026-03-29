@@ -22,6 +22,11 @@ export function useSignalR() {
     connection.value.onreconnected(() => { estConnecte.value = true })
     connection.value.onclose(() => { estConnecte.value = false })
 
+    // Handlers permanents pour les événements broadcast — évite les warnings SignalR
+    connection.value.on('ChangementEtatGlobal', () => {})
+    connection.value.on('TacheEnErreurGlobal', () => {})
+    connection.value.on('WorkflowTermineGlobal', () => {})
+
     try {
       await connection.value.start()
       estConnecte.value = true
@@ -66,11 +71,20 @@ export function useSignalR() {
     connection.value?.on('WorkflowTermine', callback)
   }
 
+  function onTacheEnErreurGlobal(callback) {
+    connection.value?.on('TacheEnErreurGlobal', callback)
+  }
+
+  function onWorkflowTermineGlobal(callback) {
+    connection.value?.on('WorkflowTermineGlobal', callback)
+  }
+
   function offAll() {
     if (!connection.value) return
     const events = [
       'ChangementEtat', 'ChangementEtatGlobal', 'TacheDemarree',
-      'TacheTerminee', 'TacheEnErreur', 'WorkflowTermine', 'TacheEnErreurGlobal'
+      'TacheTerminee', 'TacheEnErreur', 'WorkflowTermine',
+      'TacheEnErreurGlobal', 'WorkflowTermineGlobal'
     ]
     events.forEach(e => connection.value.off(e))
   }
@@ -80,6 +94,7 @@ export function useSignalR() {
     rejoindreInstance, quitterInstance, rejoindreCorrelation,
     onChangementEtat, onChangementEtatGlobal,
     onTacheDemarree, onTacheTerminee, onTacheEnErreur, onWorkflowTermine,
+    onTacheEnErreurGlobal, onWorkflowTermineGlobal,
     offAll
   }
 }

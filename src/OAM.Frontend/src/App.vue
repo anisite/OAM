@@ -3,18 +3,22 @@
     <header>
       <utd-piv-entete></utd-piv-entete>
       <div class="utd-bandeau-principal">
-        <utd-menu-horizontal :path-courant="$route.path">
-          <router-link to="/">Tableau de bord</router-link>
-          <utd-menu-horizontal-item libelle="Définitions" href="/definitions">
-            <router-link to="/definitions">Définitions</router-link>
-          </utd-menu-horizontal-item>
-          <utd-menu-horizontal-item libelle="Instances" href="/instances">
-            <router-link to="/instances">Instances</router-link>
-          </utd-menu-horizontal-item>
-        </utd-menu-horizontal>
-        <div class="utd-zone-raccourcis-connexion">
-          <div class="utd-zone-connexion">
-            <span v-if="authStore.utilisateur">{{ authStore.utilisateur }}</span>
+        <div class="utd-container">
+          <utd-menu-horizontal :path-courant="$route.path">
+            <utd-menu-horizontal-item libelle="Tableau de bord" href="/">
+              <router-link to="/">Tableau de bord</router-link>
+            </utd-menu-horizontal-item>
+            <utd-menu-horizontal-item libelle="Définitions" href="/definitions">
+              <router-link to="/definitions">Définitions</router-link>
+            </utd-menu-horizontal-item>
+            <utd-menu-horizontal-item libelle="Instances" href="/instances">
+              <router-link to="/instances">Instances</router-link>
+            </utd-menu-horizontal-item>
+          </utd-menu-horizontal>
+          <div class="utd-zone-raccourcis-connexion">
+            <div class="utd-zone-connexion">
+              <span v-if="authStore.utilisateur">{{ authStore.utilisateur }}</span>
+            </div>
           </div>
         </div>
       </div>

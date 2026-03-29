@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using OAM.Domain.Entities;
 using OAM.Domain.Enums;
 using OAM.Domain.Interfaces;
+using OAM.Workflow.Core.Connecteurs;
 using OAM.Workflow.Core.Handlebars;
 using OAM.Workflow.Core.Yaml;
 
@@ -14,6 +15,7 @@ public class MoteurWorkflow(
     IExecutionTacheRepository tacheRepo,
     INotificateurWorkflow notificateur,
     RegistreConnecteurs connecteurs,
+    IMockResolver mockResolver,
     ILogger<MoteurWorkflow> logger) : IMoteurWorkflow
 {
     public async Task<InstanceWorkflow> DemarrerAsync(Guid definitionId, string? donneesEntree = null, string? correlationId = null)
@@ -41,6 +43,9 @@ public class MoteurWorkflow(
             definition.Nom, instance.Id, correlationId);
 
         var workflowYaml = YamlParser.ParseDefinition(definition.ContenuYaml);
+        if (workflowYaml.Taches is null || workflowYaml.Taches.Count == 0)
+            throw new InvalidOperationException($"La définition '{definition.Nom}' ne contient aucune tâche. Vérifiez le contenu YAML.");
+
         await ExecuterTachesAsync(instance, workflowYaml);
 
         return instance;
@@ -138,18 +143,23 @@ public class MoteurWorkflow(
             await tacheRepo.MettreAJourAsync(execution);
             await notificateur.NotifierTacheDemarreeAsync(instance.Id, execution, instance.CorrelationId);
 
-            var connecteur = connecteurs.Obtenir(tacheDef.Type);
-            if (connecteur is null)
-            {
-                await MarquerEnErreurAsync(instance, execution, $"Type de connecteur inconnu: {tacheDef.Type}");
-                return;
-            }
-
             var parametresResolus = HandlebarsResolver.ResoudreParametres(tacheDef.Parametres, contexte);
             if (tacheDef.HttpClientId is not null)
                 parametresResolus["httpClientId"] = tacheDef.HttpClientId;
             if (tacheDef.Mock is not null)
                 parametresResolus["mock"] = tacheDef.Mock;
+
+            // Si un mock est défini et disponible, l'utiliser en priorité
+            var typeCible = tacheDef.Type;
+            if (tacheDef.Mock is not null && await mockResolver.ResoudreAsync(tacheDef.Mock, parametresResolus) is not null)
+                typeCible = "mock";
+
+            var connecteur = connecteurs.Obtenir(typeCible);
+            if (connecteur is null)
+            {
+                await MarquerEnErreurAsync(instance, execution, $"Type de connecteur inconnu: {tacheDef.Type}");
+                return;
+            }
 
             execution.DonneesEntree = JsonSerializer.Serialize(parametresResolus);
 
@@ -304,9 +314,11 @@ public class MoteurWorkflow(
     }
 
     private static bool EstVrai(string value) =>
-        value.Equals("true", StringComparison.OrdinalIgnoreCase)
-        || value == "1"
-        || value.Equals("oui", StringComparison.OrdinalIgnoreCase);
+        !string.IsNullOrEmpty(value)
+        && !value.Equals("false", StringComparison.OrdinalIgnoreCase)
+        && value != "0"
+        && !value.Equals("null", StringComparison.OrdinalIgnoreCase)
+        && !value.Equals("non", StringComparison.OrdinalIgnoreCase);
 
     private static Dictionary<string, object?> DeserialiserContexte(string? json)
     {

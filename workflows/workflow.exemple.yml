@@ -15,15 +15,16 @@ taches:
     parametres:
       rendezVousId: "{{ rendezVousId }}"
     output:
-      rendezVous: "$.data.rendezVous"
+      rendezVousId: "$.data.rendezVous.id"
+      courrielClient: "$.data.rendezVous.courriel"
 
   - id: validerRendezVous
     nom: Valider les données du rendez-vous
     type: condition
     parametres:
-      expression: "{{ rendezVous }}"
+      expression: "{{ rendezVousId }}"
     branches:
-      - condition: "{{ rendezVous }}"
+      - condition: "{{ rendezVousId }}"
         aller: notifierClient
       - condition: "true"
         aller: aucunRendezVous
@@ -35,7 +36,7 @@ taches:
     mock: notifierClientMock
     parametres:
       rendezVousId: "{{ rendezVousId }}"
-      courriel: "{{ tache.rechercherRendezVous.output.courriel }}"
+      courriel: "{{ courrielClient }}"
     suivant: terminer
 
   - id: aucunRendezVous

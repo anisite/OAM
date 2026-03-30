@@ -5,8 +5,19 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('oam_token'))
   const utilisateur = ref(localStorage.getItem('oam_utilisateur'))
 
+  function estExpire() {
+    if (!token.value) return true
+    try {
+      const payload = JSON.parse(atob(token.value.split('.')[1]))
+      // Renouveler 60 secondes avant l'expiration réelle
+      return payload.exp * 1000 < Date.now() + 60_000
+    } catch {
+      return true
+    }
+  }
+
   async function initialiser() {
-    if (!token.value) {
+    if (!token.value || estExpire()) {
       await obtenirToken()
     }
   }

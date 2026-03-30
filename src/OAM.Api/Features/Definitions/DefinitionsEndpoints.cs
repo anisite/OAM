@@ -25,7 +25,7 @@ public static class DefinitionsEndpoints
         group.MapGet("/{id:guid}/yaml", async (IDefinitionWorkflowRepository repo, Guid id) =>
         {
             var def = await repo.ObtenirParIdAsync(id);
-            return def is null ? Results.NotFound() : Results.Ok(def.ContenuYaml);
+            return def is null ? Results.NotFound() : Results.Content(def.ContenuYaml, "text/plain; charset=utf-8");
         });
 
         group.MapGet("/{id:guid}/versions", async (IDefinitionWorkflowRepository repo, Guid id) =>

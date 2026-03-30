@@ -11,10 +11,21 @@ export const useWorkflowStore = defineStore('workflow', () => {
   const authStore = useAuthStore()
 
   async function apiFetch(url, options = {}) {
+    await authStore.initialiser()
     const response = await fetch(url, {
       ...options,
       headers: { 'Content-Type': 'application/json', ...authStore.headers(), ...options.headers }
     })
+    if (response.status === 401) {
+      await authStore.obtenirToken()
+      const retry = await fetch(url, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', ...authStore.headers(), ...options.headers }
+      })
+      if (!retry.ok) throw new Error(`${retry.status} ${retry.statusText}`)
+      const retryText = await retry.text()
+      return retryText ? JSON.parse(retryText) : null
+    }
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
     const text = await response.text()
     return text ? JSON.parse(text) : null

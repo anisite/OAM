@@ -5,6 +5,7 @@ obj/
 *.suo
 *.sln.docstates
 .vs/
+logs/
 *.DotSettings.user
 
 ## NuGet
@@ -31,3 +32,6 @@ Desktop.ini
 [Dd]ebug/
 [Rr]elease/
 TestResults/
+
+#claude
+.claude/settings.local.json

@@ -76,7 +76,7 @@ OAM permet aux équipes de définir, déployer et surveiller des workflows d'act
 | Composant | Version minimale |
 |-----------|-----------------|
 | .NET SDK | 10.0 |
-| Node.js | 18.16.1 |
+| Node.js | 22.x |
 | SQL Server | 2019 (prod) / SQLite (dev) |
 | Visual Studio | 2022 Community ou supérieur |
 | IIS + ASP.NET Core Hosting Bundle | Pour déploiement |

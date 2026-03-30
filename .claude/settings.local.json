@@ -43,7 +43,8 @@
       "WebFetch(domain:github.com)",
       "Bash(taskkill /F /IM dotnet.exe)",
       "Bash(cat /c/OAM/src/OAM.Api/logs/*.log)",
-      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" add package Scalar.AspNetCore)"
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" add package Scalar.AspNetCore)",
+      "Bash(\"/c/Program Files/dotnet/../../../Program Files/nodejs/npm.cmd\" install -D @vitejs/plugin-vue@latest vite@latest)"
     ]
   }
 }

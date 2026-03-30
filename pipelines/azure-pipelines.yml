@@ -12,7 +12,7 @@ variables:
   solution: 'OAM.sln'
   buildConfiguration: 'Release'
   dotnetVersion: '10.x'
-  nodeVersion: '20.x'
+  nodeVersion: '22.x'
 
 stages:
   - stage: Build

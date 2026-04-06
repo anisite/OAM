@@ -49,6 +49,11 @@ export const useWorkflowStore = defineStore('workflow', () => {
     return await response.text()
   }
 
+  async function obtenirGraphe(id) {
+    const response = await fetch(`/api/definitions/${id}/graphe`, { headers: authStore.headers() })
+    return response.ok ? await response.text() : null
+  }
+
   async function obtenirVersions(id) {
     return await apiFetch(`/api/definitions/${id}/versions`)
   }
@@ -138,7 +143,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
   return {
     definitions, instances, instancesEnErreur, chargement,
-    chargerDefinitions, obtenirDefinition, obtenirYaml, obtenirVersions, deployerDefinition,
+    chargerDefinitions, obtenirDefinition, obtenirYaml, obtenirGraphe, obtenirVersions, deployerDefinition,
     chargerInstances, obtenirInstance, chargerEnErreur,
     demarrerWorkflow, reprendreInstance, reprendreTache, patchTaches,
     pauserInstance, annulerInstance,

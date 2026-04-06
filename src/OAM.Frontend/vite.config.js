@@ -1,5 +1,13 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { createHash } from 'node:crypto'
+
+// @vitejs/plugin-vue@6 utilise globalThis.crypto.hash qui n'existe pas sur WebCrypto
+if (!globalThis.crypto) globalThis.crypto = {}
+if (!globalThis.crypto.hash) {
+  globalThis.crypto.hash = (algorithm, data, outputEncoding) =>
+    createHash(algorithm).update(data).digest(outputEncoding)
+}
 
 export default defineConfig({
   plugins: [

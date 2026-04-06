@@ -15,6 +15,10 @@
       </div>
     </div>
 
+    <utd-section reduit="false" titre="Graphe">
+      <GrapheWorkflow :contenu="grapheContenu" />
+    </utd-section>
+
     <utd-section reduit="false" titre="Définition YAML">
       <pre class="yaml-block">{{ yamlContenu }}</pre>
     </utd-section>
@@ -98,6 +102,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkflowStore } from '../stores/workflow'
+import GrapheWorkflow from '../components/GrapheWorkflow.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -105,6 +110,7 @@ const store = useWorkflowStore()
 
 const definition = ref(null)
 const yamlContenu = ref('')
+const grapheContenu = ref('')
 const versions = ref([])
 const casTests = ref([])
 const casEnExecution = reactive({})
@@ -152,14 +158,16 @@ async function lancerTest(nom) {
 
 onMounted(async () => {
   const id = route.params.id
-  const [def, yaml, vers, tests] = await Promise.all([
+  const [def, yaml, graphe, vers, tests] = await Promise.all([
     store.obtenirDefinition(id),
     store.obtenirYaml(id),
+    store.obtenirGraphe(id),
     store.obtenirVersions(id),
     store.listerCasTests(id)
   ])
   definition.value = def
   yamlContenu.value = yaml
+  grapheContenu.value = graphe ?? ''
   versions.value = vers
   casTests.value = tests ?? []
 })

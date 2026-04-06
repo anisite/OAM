@@ -1,4 +1,6 @@
 using System.IO.Compression;
+using System.Text;
+using System.Text.RegularExpressions;
 using OAM.Domain.Entities;
 using OAM.Domain.Interfaces;
 using OAM.Workflow.Core.Connecteurs;
@@ -35,6 +37,16 @@ public static class DefinitionsEndpoints
             var versions = await repo.ListerVersionsAsync(id);
             return Results.Ok(versions.Select(v =>
                 new VersionDefinitionDto(v.Id, v.HashVersion, v.DateChargement, v.DeployePar)));
+        });
+
+        group.MapGet("/{id:guid}/graphe", async (IDefinitionWorkflowRepository repo, Guid id) =>
+        {
+            var def = await repo.ObtenirParIdAsync(id);
+            if (def is null) return Results.NotFound();
+            DefinitionWorkflowYaml wf;
+            try { wf = YamlParser.ParseDefinition(def.ContenuYaml); }
+            catch (Exception ex) { return Results.BadRequest(new { erreur = ex.Message }); }
+            return Results.Content(GenererMermaid(wf), "text/plain; charset=utf-8");
         });
 
         // Déploiement via zip : chaque dossier = un workflow
@@ -137,6 +149,82 @@ public static class DefinitionsEndpoints
         var entry = groupe.FirstOrDefault(e => e.Name == nomFichier);
         return entry is null ? null : LireEntree(entry);
     }
+
+    private static string GenererMermaid(DefinitionWorkflowYaml wf)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("flowchart TD");
+
+        // Nœuds
+        foreach (var t in wf.Taches)
+        {
+            var id = NettoyerId(t.Id);
+            var label = t.Nom.Replace("\"", "'");
+            var type = t.Type.ToLowerInvariant();
+            var noeud = type switch
+            {
+                "condition" => $"{id}{{\"{label}\"}}",
+                "terminer" or "fin" => $"{id}([\"{label}\"])",
+                _ => $"{id}[\"{label}\"]"
+            };
+            sb.AppendLine($"  {noeud}");
+        }
+
+        sb.AppendLine();
+
+        // Arêtes
+        for (var i = 0; i < wf.Taches.Count; i++)
+        {
+            var t = wf.Taches[i];
+            var id = NettoyerId(t.Id);
+
+            if (t.Branches is { Count: > 0 })
+            {
+                foreach (var b in t.Branches)
+                {
+                    var etiquette = b.Condition.Length > 25 ? b.Condition[..22] + "…" : b.Condition;
+                    sb.AppendLine($"  {id} -->|\"{etiquette}\"| {NettoyerId(b.Aller)}");
+                }
+            }
+            else
+            {
+                var suivant = t.Suivant is not null
+                    ? NettoyerId(t.Suivant)
+                    : i + 1 < wf.Taches.Count ? NettoyerId(wf.Taches[i + 1].Id) : null;
+                if (suivant is not null)
+                    sb.AppendLine($"  {id} --> {suivant}");
+            }
+
+            if (t.EnErreur is not null)
+                sb.AppendLine($"  {id} -.->|erreur| {NettoyerId(t.EnErreur)}");
+        }
+
+        // Styles par type
+        sb.AppendLine();
+        sb.AppendLine("  classDef http fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a");
+        sb.AppendLine("  classDef condition fill:#fef9c3,stroke:#ca8a04,color:#713f12");
+        sb.AppendLine("  classDef terminer fill:#dcfce7,stroke:#16a34a,color:#14532d");
+        sb.AppendLine("  classDef default fill:#f3f4f6,stroke:#9ca3af,color:#111827");
+
+        var parType = wf.Taches.GroupBy(t => t.Type.ToLowerInvariant());
+        foreach (var groupe in parType)
+        {
+            var classe = groupe.Key switch
+            {
+                "condition" => "condition",
+                "terminer" or "fin" => "terminer",
+                "http" => "http",
+                _ => "default"
+            };
+            var ids = string.Join(",", groupe.Select(t => NettoyerId(t.Id)));
+            sb.AppendLine($"  class {ids} {classe}");
+        }
+
+        return sb.ToString();
+    }
+
+    private static string NettoyerId(string id) =>
+        Regex.Replace(id, @"[^a-zA-Z0-9_]", "_");
 
     private static DefinitionWorkflowDto ToDto(DefinitionWorkflow d) => new(
         d.Id, d.Nom, d.Description, d.Equipe, d.HashVersion,

@@ -50,7 +50,19 @@
       "Bash(powershell -Command \"Invoke-RestMethod -Uri ''http://localhost:5000/api/auth/dev-token'' -Method Get | ConvertTo-Json\")",
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiaW5mb2wiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL2F1dGhlbnRpY2F0aW9ubWV0aG9kIjoiRGV2IiwianRpIjoiZWU2ZjQxOTItMGQ1ZC00OWI2LTg1YWQtMDRmOWI5MWExODhjIiwiZXhwIjoxNzc1MTI2ODg4LCJpc3MiOiJPQU0iLCJhdWQiOiJPQU0tRnJvbnRlbmQifQ.bmK3NP6VFZTnrj3HdLKTL8BYk3VD1Y_u_7dlodLsLQE\")",
       "Bash(curl.exe -s -X POST \"http://localhost:5000/api/definitions/deployer\" -H \"Authorization: Bearer $TOKEN\" -F \"fichier=@C:/OAM/deploiement.zip;type=application/zip\")",
-      "Bash(powershell -Command \"Add-Type -Assembly System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead\\(''C:\\\\OAM\\\\deploiement.zip''\\).Entries | Select-Object FullName\")"
+      "Bash(powershell -Command \"Add-Type -Assembly System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead\\(''C:\\\\OAM\\\\deploiement.zip''\\).Entries | Select-Object FullName\")",
+      "Bash(npm uninstall:*)",
+      "Bash(nvm use:*)",
+      "Bash(. ~/.nvm/nvm.sh)",
+      "Bash(npm run:*)",
+      "Read(//c/Users/infol/AppData/Roaming/nvm//**)",
+      "Read(//c//**)",
+      "Bash(/c/Users/infol/AppData/Roaming/nvm/v22.22.2/node.exe --version)",
+      "Bash(/c/Users/infol/AppData/Roaming/nvm/v22.22.2/node.exe /c/Users/infol/AppData/Roaming/nvm/v22.22.2/node_modules/npm/bin/npm-cli.js run dev)",
+      "Bash(/c/Users/infol/AppData/Roaming/nvm/v22.22.2/node.exe -e \"const c = require\\(''node:crypto''\\); console.log\\(typeof c.hash\\)\")",
+      "Bash(/c/Users/infol/AppData/Roaming/nvm/v22.22.2/node.exe -e \"console.log\\(globalThis.crypto?.hash\\)\")",
+      "Bash(sed -i 's/import { createRequire } from \"\"node:module\"\";/import { createRequire } from \"\"node:module\"\";\\\\nimport { createHash as _oamCreateHash } from \"\"node:crypto\"\";/' \"c:/OAM/src/OAM.Frontend/node_modules/@vitejs/plugin-vue/dist/index.mjs\")",
+      "Bash(sed -i 's/return crypto\\\\.hash\\(\"\"sha256\"\", text, \"\"hex\"\"\\)\\\\.substring\\(0, 8\\);/return _oamCreateHash\\(\"\"sha256\"\"\\).update\\(text\\).digest\\(\"\"hex\"\"\\).substring\\(0, 8\\);/' \"c:/OAM/src/OAM.Frontend/node_modules/@vitejs/plugin-vue/dist/index.mjs\")"
     ]
   }
 }

@@ -16,6 +16,7 @@ public class MoteurWorkflow(
     INotificateurWorkflow notificateur,
     RegistreConnecteurs connecteurs,
     IMockResolver mockResolver,
+    WorkflowQueue queue,
     ILogger<MoteurWorkflow> logger) : IMoteurWorkflow
 {
     public async Task<InstanceWorkflow> DemarrerAsync(Guid definitionId, string? donneesEntree = null, string? correlationId = null)
@@ -30,25 +31,38 @@ public class MoteurWorkflow(
             DefinitionWorkflowId = definition.Id,
             CorrelationId = correlationId,
             HashVersionConfig = definition.HashVersion,
-            Etat = EtatWorkflow.EnCours,
+            Etat = EtatWorkflow.EnAttente,
             DonneesEntree = donneesEntree,
-            ContexteExecution = donneesEntree ?? "{}",
-            DateDebut = DateTime.UtcNow
+            ContexteExecution = donneesEntree ?? "{}"
         };
 
         await instanceRepo.CreerAsync(instance);
-        await notificateur.NotifierChangementEtatAsync(instance.Id, EtatWorkflow.EnCours, correlationId);
 
-        logger.LogInformation("Workflow {Nom} démarré: Instance={InstanceId} [CorrelationId={CorrelationId}]",
+        logger.LogInformation("Workflow {Nom} enfilé: Instance={InstanceId} [CorrelationId={CorrelationId}]",
             definition.Nom, instance.Id, correlationId);
+
+        queue.Enfiler(instance.Id);
+        return instance;
+    }
+
+    public async Task ExecuterAsync(Guid instanceId)
+    {
+        var instance = await instanceRepo.ObtenirParIdAsync(instanceId)
+            ?? throw new InvalidOperationException($"Instance {instanceId} introuvable");
+
+        var definition = await definitionRepo.ObtenirParIdAsync(instance.DefinitionWorkflowId)
+            ?? throw new InvalidOperationException("Définition introuvable");
 
         var workflowYaml = YamlParser.ParseDefinition(definition.ContenuYaml);
         if (workflowYaml.Taches is null || workflowYaml.Taches.Count == 0)
-            throw new InvalidOperationException($"La définition '{definition.Nom}' ne contient aucune tâche. Vérifiez le contenu YAML.");
+            throw new InvalidOperationException($"La définition '{definition.Nom}' ne contient aucune tâche.");
+
+        instance.Etat = EtatWorkflow.EnCours;
+        instance.DateDebut = DateTime.UtcNow;
+        await instanceRepo.MettreAJourAsync(instance);
+        await notificateur.NotifierChangementEtatAsync(instance.Id, EtatWorkflow.EnCours, instance.CorrelationId);
 
         await ExecuterTachesAsync(instance, workflowYaml);
-
-        return instance;
     }
 
     public async Task ReprendreAsync(Guid instanceId)
@@ -59,15 +73,11 @@ public class MoteurWorkflow(
         if (instance.Etat is not (EtatWorkflow.EnPause or EtatWorkflow.EnErreur))
             throw new InvalidOperationException($"L'instance {instanceId} ne peut pas être reprise (état: {instance.Etat})");
 
-        var definition = await definitionRepo.ObtenirParIdAsync(instance.DefinitionWorkflowId)
-            ?? throw new InvalidOperationException("Définition introuvable");
-
         instance.Etat = EtatWorkflow.EnCours;
         await instanceRepo.MettreAJourAsync(instance);
         await notificateur.NotifierChangementEtatAsync(instance.Id, EtatWorkflow.EnCours, instance.CorrelationId);
 
-        var workflowYaml = YamlParser.ParseDefinition(definition.ContenuYaml);
-        await ExecuterTachesAsync(instance, workflowYaml);
+        queue.Enfiler(instanceId);
     }
 
     public async Task ReprendreTacheAsync(Guid instanceId, string nomTache, string? donneesEntreeCorrigees = null)

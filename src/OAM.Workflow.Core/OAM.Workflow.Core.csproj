@@ -13,6 +13,7 @@
     <PackageReference Include="YamlHttpClient" Version="*" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.*" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.*" />
   </ItemGroup>
 
   <ItemGroup>

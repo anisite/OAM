@@ -28,6 +28,7 @@ public static class TestsEndpoints
         // Exécuter un cas de test : parse le markdown, enregistre les mocks, démarre le workflow
         group.MapPost("/{definitionId:guid}/{nom}/executer", async (
             ICasTestRepository casRepo,
+            IInstanceWorkflowRepository instanceRepo,
             IMoteurWorkflow moteur,
             GestionnaireMock gestionnaireMock,
             Guid definitionId,
@@ -52,7 +53,10 @@ public static class TestsEndpoints
             OAM.Domain.Entities.InstanceWorkflow instance;
             try
             {
+                // Exécution synchrone pour les tests : on bypass la queue
                 instance = await moteur.DemarrerAsync(definitionId, parsed.InputJson, correlationId);
+                await moteur.ExecuterAsync(instance.Id);
+                instance = await instanceRepo.ObtenirParIdAsync(instance.Id) ?? instance;
             }
             finally
             {

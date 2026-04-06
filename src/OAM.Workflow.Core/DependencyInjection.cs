@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OAM.Domain.Interfaces;
 using OAM.Workflow.Core.Connecteurs;
 using OAM.Workflow.Core.Engine;
@@ -32,6 +33,10 @@ public static class DependencyInjection
             registre.Enregistrer(sp.GetRequiredService<HookConnecteur>());
             return registre;
         });
+
+        // File d'attente + traitement en arrière-plan
+        services.AddSingleton<WorkflowQueue>();
+        services.AddHostedService<WorkflowBackgroundService>();
 
         // Moteur
         services.AddScoped<IMoteurWorkflow, MoteurWorkflow>();

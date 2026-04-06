@@ -62,7 +62,9 @@
       "Bash(/c/Users/infol/AppData/Roaming/nvm/v22.22.2/node.exe -e \"const c = require\\(''node:crypto''\\); console.log\\(typeof c.hash\\)\")",
       "Bash(/c/Users/infol/AppData/Roaming/nvm/v22.22.2/node.exe -e \"console.log\\(globalThis.crypto?.hash\\)\")",
       "Bash(sed -i 's/import { createRequire } from \"\"node:module\"\";/import { createRequire } from \"\"node:module\"\";\\\\nimport { createHash as _oamCreateHash } from \"\"node:crypto\"\";/' \"c:/OAM/src/OAM.Frontend/node_modules/@vitejs/plugin-vue/dist/index.mjs\")",
-      "Bash(sed -i 's/return crypto\\\\.hash\\(\"\"sha256\"\", text, \"\"hex\"\"\\)\\\\.substring\\(0, 8\\);/return _oamCreateHash\\(\"\"sha256\"\"\\).update\\(text\\).digest\\(\"\"hex\"\"\\).substring\\(0, 8\\);/' \"c:/OAM/src/OAM.Frontend/node_modules/@vitejs/plugin-vue/dist/index.mjs\")"
+      "Bash(sed -i 's/return crypto\\\\.hash\\(\"\"sha256\"\", text, \"\"hex\"\"\\)\\\\.substring\\(0, 8\\);/return _oamCreateHash\\(\"\"sha256\"\"\\).update\\(text\\).digest\\(\"\"hex\"\"\\).substring\\(0, 8\\);/' \"c:/OAM/src/OAM.Frontend/node_modules/@vitejs/plugin-vue/dist/index.mjs\")",
+      "Bash(/c/Users/infol/AppData/Roaming/nvm/v22.22.2/node.exe /c/Users/infol/AppData/Roaming/nvm/v22.22.2/node_modules/npm/bin/npm-cli.js --prefix src/OAM.Api run build)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" build c:/OAM/src/OAM.Api/OAM.Api.csproj -v q)"
     ]
   }
 }

@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IDefinitionWorkflowRepository, DefinitionWorkflowRepository>();
         services.AddScoped<IInstanceWorkflowRepository, InstanceWorkflowRepository>();
         services.AddScoped<IExecutionTacheRepository, ExecutionTacheRepository>();
+        services.AddScoped<ICasTestRepository, CasTestRepository>();
 
         return services;
     }

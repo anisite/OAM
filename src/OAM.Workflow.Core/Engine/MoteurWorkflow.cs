@@ -146,12 +146,10 @@ public class MoteurWorkflow(
             var parametresResolus = HandlebarsResolver.ResoudreParametres(tacheDef.Parametres, contexte);
             if (tacheDef.HttpClientId is not null)
                 parametresResolus["httpClientId"] = tacheDef.HttpClientId;
-            if (tacheDef.Mock is not null)
-                parametresResolus["mock"] = tacheDef.Mock;
 
-            // Si un mock est défini et disponible, l'utiliser en priorité
+            // Vérifier si un mock est enregistré pour cette tâche (par son id)
             var typeCible = tacheDef.Type;
-            if (tacheDef.Mock is not null && await mockResolver.ResoudreAsync(tacheDef.Mock, parametresResolus) is not null)
+            if (await mockResolver.ResoudreAsync(tacheDef.Id, parametresResolus) is not null)
                 typeCible = "mock";
 
             var connecteur = connecteurs.Obtenir(typeCible);
@@ -161,6 +159,8 @@ public class MoteurWorkflow(
                 return;
             }
 
+            // Passer l'id de la tâche comme mockId pour que MockConnecteur sache quoi résoudre
+            parametresResolus["mock"] = tacheDef.Id;
             execution.DonneesEntree = JsonSerializer.Serialize(parametresResolus);
 
             var resultat = await connecteur.ExecuterAsync(new ContexteConnecteur(

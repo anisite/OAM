@@ -30,4 +30,10 @@ public static class YamlParser
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(contenu));
         return Convert.ToHexStringLower(hash);
     }
+
+    public static string CalculerHashCombine(string workflow, string? extensions = null, string? httpClients = null)
+    {
+        var contenu = workflow + (extensions ?? "") + (httpClients ?? "");
+        return CalculerHash(contenu);
+    }
 }

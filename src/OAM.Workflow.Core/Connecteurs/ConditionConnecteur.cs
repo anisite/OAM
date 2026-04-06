@@ -15,7 +15,7 @@ public class ConditionConnecteur(ILogger<ConditionConnecteur> logger) : IConnect
     {
         var expression = contexte.Parametres.GetValueOrDefault("expression")?.ToString();
         if (string.IsNullOrEmpty(expression))
-            return Task.FromResult(new ResultatConnecteur(false, null, "Expression de condition manquante"));
+            return Task.FromResult(new ResultatConnecteur(true, false));
 
         var resultat = HandlebarsResolver.Resoudre(expression, contexte.Variables);
         var estVrai = resultat.Equals("true", StringComparison.OrdinalIgnoreCase)

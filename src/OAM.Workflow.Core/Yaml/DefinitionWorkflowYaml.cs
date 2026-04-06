@@ -58,9 +58,6 @@ public class TacheYaml
     [YamlMember(Alias = "httpClientId")]
     public string? HttpClientId { get; set; }
 
-    [YamlMember(Alias = "mock")]
-    public string? Mock { get; set; }
-
     [YamlMember(Alias = "output")]
     public Dictionary<string, string>? Output { get; set; }
 

@@ -10,6 +10,8 @@ public class VersionDefinitionWorkflow
     public Guid DefinitionWorkflowId { get; set; }
     public required string HashVersion { get; set; }
     public required string ContenuYaml { get; set; }
+    public string? ContenuExtensions { get; set; }
+    public string? ContenuHttpClients { get; set; }
     public DateTime DateChargement { get; set; } = DateTime.UtcNow;
     public string? DeployePar { get; set; }
 

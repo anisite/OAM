@@ -8,6 +8,7 @@ using OAM.Api.Features.Auth;
 using OAM.Api.Features.Definitions;
 using OAM.Api.Features.Instances;
 using OAM.Api.Features.Mocks;
+using OAM.Api.Features.Tests;
 using OAM.Api.Hubs;
 using OAM.Domain.Interfaces;
 using OAM.Infrastructure;
@@ -138,6 +139,7 @@ app.MapAuth();
 app.MapDefinitions();
 app.MapInstances();
 app.MapMocks();
+app.MapTests();
 app.MapHub<WorkflowHub>("/hubs/workflow");
 
 // Fallback SPA : renvoyer index.html pour les routes Vue.js

@@ -111,11 +111,21 @@ export const useWorkflowStore = defineStore('workflow', () => {
     await apiFetch(`/api/instances/${id}/annuler`, { method: 'POST' })
   }
 
+  // Cas de tests
+  async function listerCasTests(definitionId) {
+    return await apiFetch(`/api/tests/${definitionId}`)
+  }
+
+  async function executerCasTest(definitionId, nom) {
+    return await apiFetch(`/api/tests/${definitionId}/${encodeURIComponent(nom)}/executer`, { method: 'POST' })
+  }
+
   return {
     definitions, instances, instancesEnErreur, chargement,
     chargerDefinitions, obtenirDefinition, obtenirYaml, obtenirVersions, deployerDefinition,
     chargerInstances, obtenirInstance, chargerEnErreur,
     demarrerWorkflow, reprendreInstance, reprendreTache, patchTaches,
-    pauserInstance, annulerInstance
+    pauserInstance, annulerInstance,
+    listerCasTests, executerCasTest
   }
 })

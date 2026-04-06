@@ -44,7 +44,13 @@
       "Bash(taskkill /F /IM dotnet.exe)",
       "Bash(cat /c/OAM/src/OAM.Api/logs/*.log)",
       "Bash(\"/c/Program Files/dotnet/dotnet.exe\" add package Scalar.AspNetCore)",
-      "Bash(\"/c/Program Files/dotnet/../../../Program Files/nodejs/npm.cmd\" install -D @vitejs/plugin-vue@latest vite@latest)"
+      "Bash(\"/c/Program Files/dotnet/../../../Program Files/nodejs/npm.cmd\" install -D @vitejs/plugin-vue@latest vite@latest)",
+      "Bash(powershell -Command \":*)",
+      "Bash(powershell -Command \"$token = \\(Invoke-RestMethod -Uri ''http://localhost:5000/api/auth/dev-token'' -Method Get\\).token; Write-Host $token\")",
+      "Bash(powershell -Command \"Invoke-RestMethod -Uri ''http://localhost:5000/api/auth/dev-token'' -Method Get | ConvertTo-Json\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiaW5mb2wiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL2F1dGhlbnRpY2F0aW9ubWV0aG9kIjoiRGV2IiwianRpIjoiZWU2ZjQxOTItMGQ1ZC00OWI2LTg1YWQtMDRmOWI5MWExODhjIiwiZXhwIjoxNzc1MTI2ODg4LCJpc3MiOiJPQU0iLCJhdWQiOiJPQU0tRnJvbnRlbmQifQ.bmK3NP6VFZTnrj3HdLKTL8BYk3VD1Y_u_7dlodLsLQE\")",
+      "Bash(curl.exe -s -X POST \"http://localhost:5000/api/definitions/deployer\" -H \"Authorization: Bearer $TOKEN\" -F \"fichier=@C:/OAM/deploiement.zip;type=application/zip\")",
+      "Bash(powershell -Command \"Add-Type -Assembly System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead\\(''C:\\\\OAM\\\\deploiement.zip''\\).Entries | Select-Object FullName\")"
     ]
   }
 }

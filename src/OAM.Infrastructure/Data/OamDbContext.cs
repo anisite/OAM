@@ -11,6 +11,7 @@ public class OamDbContext : DbContext
     public DbSet<VersionDefinitionWorkflow> VersionsDefinitionWorkflow => Set<VersionDefinitionWorkflow>();
     public DbSet<InstanceWorkflow> InstancesWorkflow => Set<InstanceWorkflow>();
     public DbSet<ExecutionTache> ExecutionsTache => Set<ExecutionTache>();
+    public DbSet<CasTest> CasTests => Set<CasTest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -65,6 +66,19 @@ public class OamDbContext : DbContext
             entity.HasOne(e => e.InstanceWorkflow)
                   .WithMany(i => i.Taches)
                   .HasForeignKey(e => e.InstanceWorkflowId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CasTest>(entity =>
+        {
+            entity.ToTable("CasTests");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.DefinitionWorkflowId, e.Nom }).IsUnique();
+            entity.Property(e => e.Nom).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.DeployePar).HasMaxLength(200);
+            entity.HasOne(e => e.DefinitionWorkflow)
+                  .WithMany(d => d.CasTests)
+                  .HasForeignKey(e => e.DefinitionWorkflowId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
     }

@@ -36,6 +36,44 @@
           </tr>
         </tbody>
       </table>
+      <p v-else>Aucune version enregistrée.</p>
+    </utd-section>
+
+    <utd-section reduit="false" titre="Cas de tests">
+      <p v-if="casTests.length === 0">Aucun cas de test déployé.</p>
+      <table class="utd-table" v-else>
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Déployé le</th>
+            <th>Déployé par</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="cas in casTests" :key="cas.id">
+            <td>{{ cas.nom }}</td>
+            <td>{{ formatDate(cas.dateChargement) }}</td>
+            <td>{{ cas.deployePar || '—' }}</td>
+            <td>
+              <button
+                class="utd-btn utd-btn-secondaire"
+                :disabled="casEnExecution[cas.nom]"
+                @click="lancerTest(cas.nom)"
+              >
+                {{ casEnExecution[cas.nom] ? 'En cours…' : 'Lancer' }}
+              </button>
+              <span v-if="casResultat[cas.nom]" :class="casResultat[cas.nom].passe ? 'badge-passe' : 'badge-echoue'">
+                {{ casResultat[cas.nom].passe ? '✓ Passé' : '✗ Échoué' }}
+              </span>
+              <ul v-if="casResultat[cas.nom] && !casResultat[cas.nom].passe" class="differences">
+                <li v-for="d in casResultat[cas.nom].differences" :key="d">{{ d }}</li>
+              </ul>
+              <span v-if="casErreur[cas.nom]" class="erreur-test">{{ casErreur[cas.nom] }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </utd-section>
 
     <utd-section reduit="false" titre="Actions">
@@ -47,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkflowStore } from '../stores/workflow'
 
@@ -58,6 +96,10 @@ const store = useWorkflowStore()
 const definition = ref(null)
 const yamlContenu = ref('')
 const versions = ref([])
+const casTests = ref([])
+const casEnExecution = reactive({})
+const casErreur = reactive({})
+const casResultat = reactive({})
 
 function formatDate(d) {
   return d ? new Date(d).toLocaleString('fr-CA') : ''
@@ -68,16 +110,33 @@ async function demarrer() {
   if (instance) router.push(`/instances/${instance.id}`)
 }
 
+async function lancerTest(nom) {
+  casEnExecution[nom] = true
+  casErreur[nom] = null
+  try {
+    const resultat = await store.executerCasTest(definition.value.id, nom)
+    if (resultat) {
+      casResultat[nom] = { passe: resultat.passe, differences: resultat.differences ?? [] }
+    }
+  } catch (e) {
+    casErreur[nom] = e.message || 'Erreur lors de l\'exécution'
+  } finally {
+    casEnExecution[nom] = false
+  }
+}
+
 onMounted(async () => {
   const id = route.params.id
-  const [def, yaml, vers] = await Promise.all([
+  const [def, yaml, vers, tests] = await Promise.all([
     store.obtenirDefinition(id),
     store.obtenirYaml(id),
-    store.obtenirVersions(id)
+    store.obtenirVersions(id),
+    store.listerCasTests(id)
   ])
   definition.value = def
   yamlContenu.value = yaml
   versions.value = vers
+  casTests.value = tests ?? []
 })
 </script>
 
@@ -89,5 +148,30 @@ onMounted(async () => {
   overflow-x: auto;
   font-size: 0.85rem;
   line-height: 1.5;
+}
+
+.erreur-test {
+  color: #c62828;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.badge-passe {
+  color: #2e7d32;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.badge-echoue {
+  color: #c62828;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.differences {
+  margin: 0.25rem 0 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.8rem;
+  color: #c62828;
 }
 </style>

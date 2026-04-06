@@ -10,12 +10,16 @@ public class DefinitionWorkflow
     public required string Nom { get; set; }
     public string? Description { get; set; }
     public required string ContenuYaml { get; set; }
+    public string? ContenuExtensions { get; set; }
+    public string? ContenuHttpClients { get; set; }
     public required string HashVersion { get; set; }
     public string? Equipe { get; set; }
+    public string? DeployePar { get; set; }
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
     public DateTime DateModification { get; set; } = DateTime.UtcNow;
     public bool Actif { get; set; } = true;
 
     public ICollection<InstanceWorkflow> Instances { get; set; } = [];
     public ICollection<VersionDefinitionWorkflow> Versions { get; set; } = [];
+    public ICollection<CasTest> CasTests { get; set; } = [];
 }

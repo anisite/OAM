@@ -29,6 +29,8 @@ public class DefinitionWorkflowRepository(OamDbContext db) : IDefinitionWorkflow
         if (existante is not null)
         {
             existante.ContenuYaml = definition.ContenuYaml;
+            existante.ContenuExtensions = definition.ContenuExtensions;
+            existante.ContenuHttpClients = definition.ContenuHttpClients;
             existante.HashVersion = definition.HashVersion;
             existante.Description = definition.Description;
             existante.Equipe = definition.Equipe;
@@ -45,7 +47,9 @@ public class DefinitionWorkflowRepository(OamDbContext db) : IDefinitionWorkflow
             DefinitionWorkflowId = existante.Id,
             HashVersion = existante.HashVersion,
             ContenuYaml = existante.ContenuYaml,
-            DeployePar = definition.Equipe
+            ContenuExtensions = existante.ContenuExtensions,
+            ContenuHttpClients = existante.ContenuHttpClients,
+            DeployePar = definition.DeployePar
         });
 
         await db.SaveChangesAsync();

@@ -122,7 +122,7 @@ if (app.Environment.IsDevelopment())
         var entries = System.Text.Json.JsonSerializer.Deserialize<List<SeedMockEntry>>(
             File.ReadAllText(seedPath),
             new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        entries?.ForEach(e => gestionnaire.AjouterMock(e.Id, e.Condition, e.ReponseJson));
+        entries?.ForEach(e => gestionnaire.AjouterMock(e.Id, OAM.Workflow.Core.Engine.GestionnaireMock.Global, e.Condition, e.ReponseJson));
         app.Logger.LogInformation("Mocks seedés depuis {Path} ({Count} entrées)", seedPath, entries?.Count ?? 0);
     }
 }

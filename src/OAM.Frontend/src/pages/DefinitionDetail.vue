@@ -41,7 +41,16 @@
 
     <utd-section reduit="false" titre="Cas de tests">
       <p v-if="casTests.length === 0">Aucun cas de test déployé.</p>
-      <table class="utd-table" v-else>
+      <template v-else>
+        <div class="mb-16" style="display:flex; align-items:center; gap:1rem;">
+          <button class="utd-btn utd-btn-principal" :disabled="tousEnExecution" @click="lancerTous">
+            {{ tousEnExecution ? 'En cours…' : 'Lancer tous' }}
+          </button>
+          <span v-if="resumeTests" :class="resumeTests.echecs === 0 ? 'badge-passe' : 'badge-echoue'">
+            {{ resumeTests.passes }}/{{ resumeTests.total }} passés
+          </span>
+        </div>
+      <table class="utd-table">
         <thead>
           <tr>
             <th>Nom</th>
@@ -74,6 +83,7 @@
           </tr>
         </tbody>
       </table>
+      </template>
     </utd-section>
 
     <utd-section reduit="false" titre="Actions">
@@ -100,6 +110,8 @@ const casTests = ref([])
 const casEnExecution = reactive({})
 const casErreur = reactive({})
 const casResultat = reactive({})
+const tousEnExecution = ref(false)
+const resumeTests = ref(null)
 
 function formatDate(d) {
   return d ? new Date(d).toLocaleString('fr-CA') : ''
@@ -108,6 +120,19 @@ function formatDate(d) {
 async function demarrer() {
   const instance = await store.demarrerWorkflow(definition.value.id)
   if (instance) router.push(`/instances/${instance.id}`)
+}
+
+async function lancerTous() {
+  tousEnExecution.value = true
+  resumeTests.value = null
+  try {
+    await Promise.all(casTests.value.map(cas => lancerTest(cas.nom)))
+  } finally {
+    tousEnExecution.value = false
+    const total = casTests.value.length
+    const passes = casTests.value.filter(cas => casResultat[cas.nom]?.passe).length
+    resumeTests.value = { total, passes, echecs: total - passes }
+  }
 }
 
 async function lancerTest(nom) {

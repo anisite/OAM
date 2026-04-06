@@ -19,7 +19,7 @@ public class MockConnecteur(
         if (string.IsNullOrEmpty(mockId))
             return new ResultatConnecteur(false, null, "Aucun mock défini pour cette tâche");
 
-        var resultat = await mockResolver.ResoudreAsync(mockId, contexte.Parametres);
+        var resultat = await mockResolver.ResoudreAsync(mockId, contexte.CorrelationId, contexte.Parametres);
 
         logger.LogInformation(
             "Mock {MockId} résolu pour tâche {NomTache} [CorrelationId={CorrelationId}]",
@@ -31,5 +31,5 @@ public class MockConnecteur(
 
 public interface IMockResolver
 {
-    Task<object?> ResoudreAsync(string mockId, Dictionary<string, object?> parametres);
+    Task<object?> ResoudreAsync(string mockId, string correlationId, Dictionary<string, object?> parametres);
 }

@@ -43,11 +43,12 @@ public static class TestsEndpoints
                 return Results.BadRequest(new { erreur = $"Impossible d'analyser le cas de test : {ex.Message}" });
             }
 
-            // Enregistrer les mocks définis dans le test
-            foreach (var (id, reponseJson) in parsed.Mocks)
-                gestionnaireMock.AjouterMock(id, null, reponseJson);
+            var correlationId = $"test-{nom}-{Guid.NewGuid():N}";
 
-            var correlationId = $"test-{nom}-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            // Enregistrer les mocks scopés à ce correlationId
+            foreach (var (id, reponseJson) in parsed.Mocks)
+                gestionnaireMock.AjouterMock(id, correlationId, null, reponseJson);
+
             OAM.Domain.Entities.InstanceWorkflow instance;
             try
             {
@@ -55,9 +56,8 @@ public static class TestsEndpoints
             }
             finally
             {
-                // Nettoyer uniquement les mocks enregistrés pour ce test
                 foreach (var (id, _) in parsed.Mocks)
-                    gestionnaireMock.RetirerMock(id);
+                    gestionnaireMock.RetirerMock(id, correlationId);
             }
 
             // Valider le OUTPUT attendu si défini

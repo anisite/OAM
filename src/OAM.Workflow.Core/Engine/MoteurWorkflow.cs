@@ -149,7 +149,7 @@ public class MoteurWorkflow(
 
             // Vérifier si un mock est enregistré pour cette tâche (par son id)
             var typeCible = tacheDef.Type;
-            if (await mockResolver.ResoudreAsync(tacheDef.Id, parametresResolus) is not null)
+            if (await mockResolver.ResoudreAsync(tacheDef.Id, instance.CorrelationId, parametresResolus) is not null)
                 typeCible = "mock";
 
             var connecteur = connecteurs.Obtenir(typeCible);

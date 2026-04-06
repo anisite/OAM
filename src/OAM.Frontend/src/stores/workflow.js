@@ -120,12 +120,28 @@ export const useWorkflowStore = defineStore('workflow', () => {
     return await apiFetch(`/api/tests/${definitionId}/${encodeURIComponent(nom)}/executer`, { method: 'POST' })
   }
 
+  async function exporterInstanceCommeTest(instanceId) {
+    await authStore.initialiser()
+    const response = await fetch(`/api/instances/${instanceId}/exporter-test`, { headers: authStore.headers() })
+    if (!response.ok) throw new Error(`${response.status}`)
+    const blob = await response.blob()
+    const disposition = response.headers.get('Content-Disposition') ?? ''
+    const nomMatch = disposition.match(/filename="?([^"]+)"?/)
+    const nom = nomMatch?.[1] ?? 'test.md'
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = nom
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return {
     definitions, instances, instancesEnErreur, chargement,
     chargerDefinitions, obtenirDefinition, obtenirYaml, obtenirVersions, deployerDefinition,
     chargerInstances, obtenirInstance, chargerEnErreur,
     demarrerWorkflow, reprendreInstance, reprendreTache, patchTaches,
     pauserInstance, annulerInstance,
-    listerCasTests, executerCasTest
+    listerCasTests, executerCasTest, exporterInstanceCommeTest
   }
 })

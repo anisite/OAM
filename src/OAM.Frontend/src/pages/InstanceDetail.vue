@@ -15,9 +15,14 @@
     </div>
 
     <!-- Actions -->
-    <div class="mb-32" v-if="instance.etat === 'EnErreur' || instance.etat === 'EnPause'">
-      <button class="utd-btn utd-btn-principal" @click="reprendre">Reprendre le workflow</button>
-      <button class="utd-btn utd-btn-secondaire" @click="annuler" style="margin-left: 8px;">Annuler</button>
+    <div class="mb-32">
+      <template v-if="instance.etat === 'EnErreur' || instance.etat === 'EnPause'">
+        <button class="utd-btn utd-btn-principal" @click="reprendre">Reprendre le workflow</button>
+        <button class="utd-btn utd-btn-secondaire" @click="annuler" style="margin-left: 8px;">Annuler</button>
+      </template>
+      <button class="utd-btn utd-btn-secondaire" @click="exporterTest" style="margin-left: 8px;">
+        Exporter comme test .md
+      </button>
     </div>
 
     <!-- Tâches -->
@@ -101,6 +106,10 @@ async function reprendre() {
 async function annuler() {
   await store.annulerInstance(instance.value.id)
   await charger()
+}
+
+async function exporterTest() {
+  await store.exporterInstanceCommeTest(instance.value.id)
 }
 
 async function reprendreTache(tache) {

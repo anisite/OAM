@@ -1,7 +1,7 @@
 # Surcharge des clients HTTP pour le développement local
 # Ce fichier remplace http-clients.yml en environnement Development
 
-httpClient:
+http_client:
   getRendezVousApi:
     method: GET
     url: "http://localhost:3001/rendezvous/{rendezVousId}"

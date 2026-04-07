@@ -18,6 +18,7 @@ public class InstanceWorkflow
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
     public DateTime? DateDebut { get; set; }
     public DateTime? DateFin { get; set; }
+    public DateTime? DernierHeartbeat { get; set; }
     public string? Erreur { get; set; }
 
     public DefinitionWorkflow? DefinitionWorkflow { get; set; }

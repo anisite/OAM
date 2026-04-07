@@ -53,4 +53,41 @@ public class InstanceWorkflowRepository(OamDbContext db) : IInstanceWorkflowRepo
 
         return await query.OrderByDescending(i => i.DateCreation).ToListAsync();
     }
+
+    public async Task<IReadOnlyList<InstanceWorkflow>> ListerOrphelinsAsync(TimeSpan seuilInactivite)
+    {
+        var seuil = DateTime.UtcNow - seuilInactivite;
+        return await db.InstancesWorkflow
+            .Where(i =>
+                (i.Etat == EtatWorkflow.EnCours && i.DernierHeartbeat < seuil) ||
+                (i.Etat == EtatWorkflow.EnAttente && i.DateCreation < seuil))
+            .ToListAsync();
+    }
+
+    public async Task MettreAJourHeartbeatAsync(Guid instanceId)
+    {
+        await db.InstancesWorkflow
+            .Where(i => i.Id == instanceId)
+            .ExecuteUpdateAsync(s => s.SetProperty(i => i.DernierHeartbeat, DateTime.UtcNow));
+    }
+
+    public async Task<bool> ReclamerAsync(Guid instanceId)
+    {
+        var seuil = DateTime.UtcNow - TimeSpan.FromMinutes(2);
+
+        // UPDATE atomique : réussit seulement si personne d'autre ne traite déjà cette instance.
+        // Condition : EnAttente (jamais démarré) OU EnCours avec heartbeat périmé (orphelin).
+        var updated = await db.InstancesWorkflow
+            .Where(i => i.Id == instanceId &&
+                        (i.Etat == EtatWorkflow.EnAttente ||
+                         i.Etat == EtatWorkflow.EnErreur ||
+                         i.Etat == EtatWorkflow.EnPause ||
+                         (i.Etat == EtatWorkflow.EnCours &&
+                          (i.DernierHeartbeat == null || i.DernierHeartbeat < seuil))))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(i => i.Etat, EtatWorkflow.EnCours)
+                .SetProperty(i => i.DernierHeartbeat, DateTime.UtcNow));
+
+        return updated > 0;
+    }
 }

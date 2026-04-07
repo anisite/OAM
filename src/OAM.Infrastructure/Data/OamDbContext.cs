@@ -46,6 +46,7 @@ public class OamDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.CorrelationId);
             entity.HasIndex(e => e.Etat);
+            entity.HasIndex(e => e.DernierHeartbeat);
             entity.Property(e => e.CorrelationId).HasMaxLength(100).IsRequired();
             entity.Property(e => e.HashVersionConfig).HasMaxLength(64).IsRequired();
             entity.Property(e => e.Etat).HasConversion<string>().HasMaxLength(20);

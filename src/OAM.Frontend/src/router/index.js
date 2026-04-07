@@ -25,6 +25,11 @@ const routes = [
     path: '/instances/:id',
     name: 'instance-detail',
     component: () => import('../pages/InstanceDetail.vue')
+  },
+  {
+    path: '/deploiement',
+    name: 'deploiement',
+    component: () => import('../pages/Deploiement.vue')
   }
 ]
 

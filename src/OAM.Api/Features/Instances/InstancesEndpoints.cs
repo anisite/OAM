@@ -25,10 +25,21 @@ public static class InstancesEndpoints
         group.MapGet("/erreurs", async (IInstanceWorkflowRepository repo, Guid? definitionId) =>
             Results.Ok((await repo.ListerEnErreurAsync(definitionId)).Select(ToDto)));
 
-        group.MapPost("/demarrer", async (IMoteurWorkflow moteur, DemarrerWorkflowDto dto) =>
+        group.MapPost("/demarrer", async (
+            IMoteurWorkflow moteur,
+            OAM.Workflow.Core.Engine.IAttenteReponse attenteReponse,
+            DemarrerWorkflowDto dto) =>
         {
-            var instance = await moteur.DemarrerAsync(dto.DefinitionId, dto.DonneesEntree, dto.CorrelationId);
-            return Results.Ok(ToDto(instance));
+            var correlationId = dto.CorrelationId ?? Guid.NewGuid().ToString("N");
+
+            // S'abonner AVANT d'enqueuer — évite la race condition si le workflow est très rapide
+            var reponseTask = attenteReponse.AttendrePourAsync(correlationId, TimeSpan.FromSeconds(30));
+
+            var instance = await moteur.DemarrerAsync(dto.DefinitionId, dto.DonneesEntree, correlationId);
+
+            // Attend le signal de la tâche "reponse" ou la fin du workflow (null = pas de tâche reponse)
+            var reponse = await reponseTask;
+            return reponse is not null ? Results.Ok(reponse) : Results.Ok(ToDto(instance));
         });
 
         group.MapPost("/{id:guid}/reprendre", async (IMoteurWorkflow moteur, Guid id) =>

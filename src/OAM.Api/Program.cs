@@ -68,6 +68,9 @@ var useSqlite = connectionString.Contains(".db", StringComparison.OrdinalIgnoreC
 builder.Services.AddOamInfrastructure(connectionString, useSqlite);
 builder.Services.AddOamWorkflowCore();
 
+// Rechargement des http-clients workflows au démarrage
+builder.Services.AddHostedService<OAM.Api.HttpClientsInitializer>();
+
 // SignalR
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<INotificateurWorkflow, SignalRNotificateur>();
@@ -99,7 +102,7 @@ var httpClientsBase = Path.Combine(Directory.GetCurrentDirectory(), "http-client
 var httpClientsPath = File.Exists(httpClientsEnv) ? httpClientsEnv : httpClientsBase;
 if (File.Exists(httpClientsPath))
 {
-    //configHttp.ChargerDepuisYaml(File.ReadAllText(httpClientsPath));
+    configHttp.ChargerDepuisYaml(File.ReadAllText(httpClientsPath));
     app.Logger.LogInformation("Clients HTTP chargés depuis {Path}", httpClientsPath);
 }
 

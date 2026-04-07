@@ -62,17 +62,34 @@ public class HttpConnecteur(
 /// </summary>
 public class ConfigurationYamlHttp
 {
-    private readonly YamlHttpClientConfigBuilder _config = new();
+    private readonly Dictionary<string, HttpClientSettings> _settings = new(StringComparer.OrdinalIgnoreCase);
 
-    public void ChargerDepuisYaml(string yaml, string? nom = null)
+    private static readonly YamlDotNet.Serialization.IDeserializer Deserializer =
+        new YamlDotNet.Serialization.DeserializerBuilder()
+            .IgnoreUnmatchedProperties()
+            .Build();
+
+    public void ChargerDepuisYaml(string yaml, string? _ = null)
     {
-        _config.LoadFromString(yaml, nom ?? "default");
+        var doc = Deserializer.Deserialize<Dictionary<string, object>>(yaml);
+        if (doc is null) return;
+
+        var section = doc.GetValueOrDefault("http_client") ?? doc.GetValueOrDefault("httpClient");
+        if (section is not Dictionary<object, object> clients) return;
+
+        foreach (var key in clients.Keys)
+        {
+            var id = key.ToString()!;
+            try
+            {
+                var settings = new YamlHttpClientConfigBuilder().LoadFromString(yaml, id);
+                if (settings is not null)
+                    _settings[id] = settings;
+            }
+            catch { /* ignorer les entrées invalides */ }
+        }
     }
 
-    public HttpClientSettings? ObtenirSettings(string id)
-    {
-        return _config.HttpClient?.GetValueOrDefault(id);
-    }
-
-    public YamlHttpClientConfigBuilder Config => _config;
+    public HttpClientSettings? ObtenirSettings(string id) =>
+        _settings.GetValueOrDefault(id);
 }

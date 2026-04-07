@@ -2,7 +2,7 @@
 # Référencé dans les workflows YAML via : httpClientId: <id>
 # Les valeurs peuvent contenir des variables Handlebars résolues au runtime
 
-httpClient:
+http_client:
   getRendezVousApi:
     method: GET
     url: "https://api.exemple.com/rendezvous/{rendezVousId}"

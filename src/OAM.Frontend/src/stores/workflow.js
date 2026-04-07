@@ -58,8 +58,25 @@ export const useWorkflowStore = defineStore('workflow', () => {
     return await apiFetch(`/api/definitions/${id}/versions`)
   }
 
-  async function deployerDefinition(data) {
-    return await apiFetch('/api/definitions/deployer', { method: 'POST', body: JSON.stringify(data) })
+  async function deployerDefinition(fichierOuData) {
+    if (fichierOuData instanceof File) {
+      await authStore.initialiser()
+      const form = new FormData()
+      form.append('fichier', fichierOuData)
+      const response = await fetch('/api/definitions/deployer', { method: 'POST', headers: authStore.headers(), body: form })
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+      return await response.json()
+    }
+    return await apiFetch('/api/definitions/deployer', { method: 'POST', body: JSON.stringify(fichierOuData) })
+  }
+
+  async function deployerCasTests(fichier) {
+    await authStore.initialiser()
+    const form = new FormData()
+    form.append('fichier', fichier)
+    const response = await fetch('/api/tests/deployer', { method: 'POST', headers: authStore.headers(), body: form })
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+    return await response.json()
   }
 
   // Instances
@@ -143,7 +160,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
   return {
     definitions, instances, instancesEnErreur, chargement,
-    chargerDefinitions, obtenirDefinition, obtenirYaml, obtenirGraphe, obtenirVersions, deployerDefinition,
+    chargerDefinitions, obtenirDefinition, obtenirYaml, obtenirGraphe, obtenirVersions, deployerDefinition, deployerCasTests,
     chargerInstances, obtenirInstance, chargerEnErreur,
     demarrerWorkflow, reprendreInstance, reprendreTache, patchTaches,
     pauserInstance, annulerInstance,

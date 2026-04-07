@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddSingleton<MockConnecteur>();
         services.AddSingleton<ConditionConnecteur>();
         services.AddSingleton<HookConnecteur>();
+        services.AddSingleton<ReponseConnecteur>();
 
         // Mock resolver
         services.AddSingleton<GestionnaireMock>();
@@ -31,12 +32,17 @@ public static class DependencyInjection
             registre.Enregistrer(sp.GetRequiredService<MockConnecteur>());
             registre.Enregistrer(sp.GetRequiredService<ConditionConnecteur>());
             registre.Enregistrer(sp.GetRequiredService<HookConnecteur>());
+            registre.Enregistrer(sp.GetRequiredService<ReponseConnecteur>());
             return registre;
         });
 
-        // File d'attente + traitement en arrière-plan
+        // Réponse synchrone (swap AttenteReponseMemoire → AttenteReponseGarnet pour multi-serveurs)
+        services.AddSingleton<IAttenteReponse, AttenteReponseMemoire>();
+
+        // File d'attente + traitement en arrière-plan + récupération orphelins
         services.AddSingleton<WorkflowQueue>();
         services.AddHostedService<WorkflowBackgroundService>();
+        services.AddHostedService<OrphelinRecuperateur>();
 
         // Moteur
         services.AddScoped<IMoteurWorkflow, MoteurWorkflow>();

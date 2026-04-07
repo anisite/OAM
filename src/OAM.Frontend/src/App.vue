@@ -14,6 +14,9 @@
             <utd-menu-horizontal-item libelle="Instances" href="/instances">
               <router-link to="/instances">Instances</router-link>
             </utd-menu-horizontal-item>
+            <utd-menu-horizontal-item libelle="Déploiement" href="/deploiement">
+              <router-link to="/deploiement">Déploiement</router-link>
+            </utd-menu-horizontal-item>
           </utd-menu-horizontal>
           <div class="utd-zone-raccourcis-connexion">
             <div class="utd-zone-connexion">

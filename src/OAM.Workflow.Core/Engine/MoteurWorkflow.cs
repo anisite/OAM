@@ -17,6 +17,7 @@ public class MoteurWorkflow(
     RegistreConnecteurs connecteurs,
     IMockResolver mockResolver,
     WorkflowQueue queue,
+    IAttenteReponse attenteReponse,
     ILogger<MoteurWorkflow> logger) : IMoteurWorkflow
 {
     public async Task<InstanceWorkflow> DemarrerAsync(Guid definitionId, string? donneesEntree = null, string? correlationId = null)
@@ -45,8 +46,47 @@ public class MoteurWorkflow(
         return instance;
     }
 
+    public async Task<InstanceWorkflow> DemarrerEtExecuterAsync(Guid definitionId, string? donneesEntree = null, string? correlationId = null)
+    {
+        correlationId ??= Guid.NewGuid().ToString("N");
+
+        var definition = await definitionRepo.ObtenirParIdAsync(definitionId)
+            ?? throw new InvalidOperationException($"Définition {definitionId} introuvable");
+
+        var instance = new InstanceWorkflow
+        {
+            DefinitionWorkflowId = definition.Id,
+            CorrelationId = correlationId,
+            HashVersionConfig = definition.HashVersion,
+            Etat = EtatWorkflow.EnCours,
+            DonneesEntree = donneesEntree,
+            ContexteExecution = donneesEntree ?? "{}",
+            DateDebut = DateTime.UtcNow,
+            DernierHeartbeat = DateTime.UtcNow
+        };
+
+        await instanceRepo.CreerAsync(instance);
+        await notificateur.NotifierChangementEtatAsync(instance.Id, EtatWorkflow.EnCours, correlationId);
+
+        var workflowYaml = YamlParser.ParseDefinition(definition.ContenuYaml);
+        if (workflowYaml.Taches is null || workflowYaml.Taches.Count == 0)
+            throw new InvalidOperationException($"La définition '{definition.Nom}' ne contient aucune tâche.");
+
+        await ExecuterTachesAsync(instance, workflowYaml);
+        attenteReponse.Signaler(correlationId, null);
+
+        return await instanceRepo.ObtenirParIdAsync(instance.Id) ?? instance;
+    }
+
     public async Task ExecuterAsync(Guid instanceId)
     {
+        // Claim atomique — si un autre serveur a déjà pris cette instance, on abandonne silencieusement
+        if (!await instanceRepo.ReclamerAsync(instanceId))
+        {
+            logger.LogDebug("Instance {InstanceId} déjà réclamée par un autre serveur, abandon", instanceId);
+            return;
+        }
+
         var instance = await instanceRepo.ObtenirParIdAsync(instanceId)
             ?? throw new InvalidOperationException($"Instance {instanceId} introuvable");
 
@@ -57,12 +97,18 @@ public class MoteurWorkflow(
         if (workflowYaml.Taches is null || workflowYaml.Taches.Count == 0)
             throw new InvalidOperationException($"La définition '{definition.Nom}' ne contient aucune tâche.");
 
-        instance.Etat = EtatWorkflow.EnCours;
-        instance.DateDebut = DateTime.UtcNow;
-        await instanceRepo.MettreAJourAsync(instance);
+        if (instance.DateDebut is null)
+        {
+            instance.DateDebut = DateTime.UtcNow;
+            await instanceRepo.MettreAJourAsync(instance);
+        }
+
         await notificateur.NotifierChangementEtatAsync(instance.Id, EtatWorkflow.EnCours, instance.CorrelationId);
 
         await ExecuterTachesAsync(instance, workflowYaml);
+
+        // Libérer le caller HTTP si aucune tâche "reponse" ne l'a déjà fait
+        attenteReponse.Signaler(instance.CorrelationId, null);
     }
 
     public async Task ReprendreAsync(Guid instanceId)
@@ -73,9 +119,9 @@ public class MoteurWorkflow(
         if (instance.Etat is not (EtatWorkflow.EnPause or EtatWorkflow.EnErreur))
             throw new InvalidOperationException($"L'instance {instanceId} ne peut pas être reprise (état: {instance.Etat})");
 
-        instance.Etat = EtatWorkflow.EnCours;
+        instance.Etat = EtatWorkflow.EnAttente;
+        instance.DernierHeartbeat = null;
         await instanceRepo.MettreAJourAsync(instance);
-        await notificateur.NotifierChangementEtatAsync(instance.Id, EtatWorkflow.EnCours, instance.CorrelationId);
 
         queue.Enfiler(instanceId);
     }
@@ -169,9 +215,11 @@ public class MoteurWorkflow(
                 return;
             }
 
+            // Persister les données d'entrée AVANT d'ajouter les clés internes
+            execution.DonneesEntree = JsonSerializer.Serialize(parametresResolus);
+
             // Passer l'id de la tâche comme mockId pour que MockConnecteur sache quoi résoudre
             parametresResolus["mock"] = tacheDef.Id;
-            execution.DonneesEntree = JsonSerializer.Serialize(parametresResolus);
 
             var resultat = await connecteur.ExecuterAsync(new ContexteConnecteur(
                 tacheDef.Nom,
@@ -208,6 +256,7 @@ public class MoteurWorkflow(
             StockerSortie(contexte, tacheDef, resultat);
 
             instance.ContexteExecution = JsonSerializer.Serialize(contexte);
+            instance.DernierHeartbeat = DateTime.UtcNow;
             await instanceRepo.MettreAJourAsync(instance);
 
             // Navigation : branches ou suivant

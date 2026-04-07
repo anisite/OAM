@@ -55,6 +55,15 @@
             <button class="utd-btn utd-btn-principal utd-btn-sm"
                     @click="reprendreTache(tache)">Reprendre cette tâche</button>
           </div>
+          <div v-if="tache.etat === 'EnPause'" class="mt-16">
+            <div class="hook-titre">
+              <h4>Reprendre via hook</h4>
+              <button class="utd-btn utd-btn-secondaire utd-btn-sm" @click="copier(tache.nomTache)">
+                {{ copiee === tache.nomTache ? 'Copié !' : 'Copier' }}
+              </button>
+            </div>
+            <pre class="donnees-block">{{ curlHook(tache.nomTache) }}</pre>
+          </div>
         </div>
 
         <button class="utd-btn utd-btn-lien utd-btn-sm"
@@ -88,6 +97,18 @@ const { rejoindreInstance, quitterInstance, onChangementEtat, onTacheDemarree, o
 const instance = ref(null)
 const tacheOuverte = ref(null)
 const tachesEnErreur = computed(() => instance.value?.taches?.filter(t => t.etat === 'EnErreur') || [])
+const copiee = ref(null)
+
+function curlHook(nomTache) {
+  const base = window.location.origin
+  return `curl -X POST ${base}/api/instances/${instance.value?.id}/hook/${encodeURIComponent(nomTache)}`
+}
+
+async function copier(nomTache) {
+  await navigator.clipboard.writeText(curlHook(nomTache))
+  copiee.value = nomTache
+  setTimeout(() => { copiee.value = null }, 2000)
+}
 
 function formatJson(str) {
   if (!str) return '—'
@@ -171,4 +192,13 @@ onUnmounted(() => {
 }
 .erreur-detail { margin-top: 12px; }
 .mt-16 { margin-top: 16px; }
+.hook-titre {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.hook-titre h4 {
+  margin: 0;
+}
 </style>

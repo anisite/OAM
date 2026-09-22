@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OAM Workflow Definition",
+  "description": "Schéma de validation pour les définitions de workflow OAM",
+  "type": "object",
+  "required": ["nom", "taches"],
+  "properties": {
+    "nom": {
+      "type": "string",
+      "description": "Nom unique du workflow"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description du workflow"
+    },
+    "equipe": {
+      "type": "string",
+      "description": "Équipe propriétaire du workflow"
+    },
+    "variables": {
+      "type": "object",
+      "description": "Variables globales du workflow",
+      "additionalProperties": true
+    },
+    "taches": {
+      "type": "array",
+      "description": "Liste ordonnée des tâches du workflow",
+      "items": {
+        "$ref": "#/definitions/tache"
+      },
+      "minItems": 1
+    }
+  },
+  "definitions": {
+    "tache": {
+      "type": "object",
+      "required": ["id", "nom", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant unique de la tâche dans le workflow"
+        },
+        "nom": {
+          "type": "string",
+          "description": "Nom descriptif de la tâche"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["http", "condition", "mock", "hook", "boucle", "mdat", "pubsub"],
+          "description": "Type de connecteur"
+        },
+        "description": {
+          "type": "string"
+        },
+        "httpClientId": {
+          "type": "string",
+          "description": "Référence vers la configuration yamlHttpClient"
+        },
+        "mock": {
+          "type": "string",
+          "description": "Identifiant du mock associé"
+        },
+        "hook": {
+          "type": "boolean",
+          "description": "Si true, met le workflow en pause en attente d'un appel externe"
+        },
+        "parametres": {
+          "type": "object",
+          "description": "Paramètres passés au connecteur (supporte Handlebars)",
+          "additionalProperties": true
+        },
+        "condition": {
+          "type": "string",
+          "description": "Expression Handlebars évaluée pour déterminer si la tâche s'exécute"
+        },
+        "suivant": {
+          "type": "string",
+          "description": "ID de la prochaine tâche (override séquentiel)"
+        },
+        "enErreur": {
+          "type": "string",
+          "description": "ID de la tâche à exécuter en cas d'erreur"
+        },
+        "output": {
+          "type": "object",
+          "description": "Mappings JSONPath des sorties vers des variables",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "boucle": {
+          "type": "object",
+          "properties": {
+            "collection": {
+              "type": "string",
+              "description": "Expression Handlebars vers la collection à itérer"
+            },
+            "variable": {
+              "type": "string",
+              "description": "Nom de la variable d'itération"
+            }
+          },
+          "required": ["collection", "variable"]
+        },
+        "branches": {
+          "type": "array",
+          "description": "Branchements conditionnels",
+          "items": {
+            "type": "object",
+            "required": ["condition", "aller"],
+            "properties": {
+              "condition": {
+                "type": "string",
+                "description": "Expression Handlebars"
+              },
+              "aller": {
+                "type": "string",
+                "description": "ID de la tâche cible"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+extensions:
+  - id: rechercherRendezVous
+    type: http
+    httpClientId: getRendezVousApi
+    mock: rechercherRendezVousMock
+    famille: Agenda
+    output:
+      rendezVous: "$.data.rendezVous"
+    default:
+      auth: bearer
+      baseUrl: "{{ config.agenda.baseUrl }}"
+
+  - id: notifierClient
+    type: http
+    httpClientId: notifierClientApi
+    mock: notifierClientMock
+    famille: Notification
+    output:
+      notificationEnvoyee: "$.data.succes"
+    default:
+      auth: bearer
+      baseUrl: "{{ config.notification.baseUrl }}"

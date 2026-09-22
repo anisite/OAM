@@ -1,11 +1,11 @@
-# Utilisation typique d'OAM en production
+# Utilisation typique d'OIM en production
 
 ## Flux complet : déploiement → exécution → résultat
 
 ```mermaid
 sequenceDiagram
     actor Dev as Développeur / CI-CD
-    participant API as OAM API
+    participant API as OIM API
     participant DB as SQLite / BDD
     participant Queue as WorkflowQueue
     participant BG as WorkflowBackgroundService
@@ -102,13 +102,13 @@ stateDiagram-v2
 
 ```mermaid
 graph TD
-    subgraph API["OAM.Api"]
+    subgraph API["OIM.Api"]
         DEF["/api/definitions<br/>Déployer · Lister · Graphe"]
         INST["/api/instances<br/>Démarrer · Pauser · Reprendre"]
         HUB["SignalR Hub<br/>Notifications temps réel"]
     end
 
-    subgraph CORE["OAM.Workflow.Core"]
+    subgraph CORE["OIM.Workflow.Core"]
         MOTEUR["MoteurWorkflow<br/>Orchestrateur"]
         QUEUE["WorkflowQueue<br/>File en mémoire"]
         BG["WorkflowBackgroundService<br/>Boucle déqueue"]

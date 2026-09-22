@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/sources/">
+    <Project Path="sources/OIM.Api/OIM.Api.csproj" />
+    <Project Path="sources/OIM.Domain/OIM.Domain.csproj" />
+    <Project Path="sources/OIM.Infrastructure/OIM.Infrastructure.csproj" />
+    <Project Path="sources/OIM.Workflow.Core/OIM.Workflow.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OIM.Tests/OIM.Tests.csproj" />
+  </Folder>
+</Solution>

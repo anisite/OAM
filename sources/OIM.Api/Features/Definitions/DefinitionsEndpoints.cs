@@ -1,0 +1,232 @@
+using System.IO.Compression;
+using System.Text;
+using System.Text.RegularExpressions;
+using OIM.Domain.Entities;
+using OIM.Domain.Interfaces;
+using OIM.Workflow.Core.Connecteurs;
+using OIM.Workflow.Core.Yaml;
+
+namespace OIM.Api.Features.Definitions;
+
+public static class DefinitionsEndpoints
+{
+    public static IEndpointRouteBuilder MapDefinitions(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/definitions").RequireAuthorization();
+
+        group.MapGet("/", async (IDefinitionWorkflowRepository repo, string? equipe) =>
+        {
+            var liste = await repo.ListerAsync(equipe);
+            return Results.Ok(liste.Select(ToDto));
+        });
+
+        group.MapGet("/{id:guid}", async (IDefinitionWorkflowRepository repo, Guid id) =>
+        {
+            var def = await repo.ObtenirParIdAsync(id);
+            return def is null ? Results.NotFound() : Results.Ok(ToDto(def));
+        });
+
+        group.MapGet("/{id:guid}/yaml", async (IDefinitionWorkflowRepository repo, Guid id) =>
+        {
+            var def = await repo.ObtenirParIdAsync(id);
+            return def is null ? Results.NotFound() : Results.Content(def.ContenuYaml, "text/plain; charset=utf-8");
+        });
+
+        group.MapGet("/{id:guid}/versions", async (IDefinitionWorkflowRepository repo, Guid id) =>
+        {
+            var versions = await repo.ListerVersionsAsync(id);
+            return Results.Ok(versions.Select(v =>
+                new VersionDefinitionDto(v.Id, v.HashVersion, v.DateChargement, v.DeployePar)));
+        });
+
+        group.MapGet("/{id:guid}/graphe", async (IDefinitionWorkflowRepository repo, Guid id) =>
+        {
+            var def = await repo.ObtenirParIdAsync(id);
+            if (def is null) return Results.NotFound();
+            DefinitionWorkflowYaml wf;
+            try { wf = YamlParser.ParseDefinition(def.ContenuYaml); }
+            catch (Exception ex) { return Results.BadRequest(new { erreur = ex.Message }); }
+            return Results.Content(GenererMermaid(wf), "text/plain; charset=utf-8");
+        });
+
+        // Déploiement via zip : chaque dossier = un workflow
+        // Structure : NomWorkflow/workflow.yml, extensions.yml, http-clients.yml
+        group.MapPost("/deployer", async (
+            HttpRequest req,
+            IDefinitionWorkflowRepository repo,
+            ConfigurationYamlHttp configHttp,
+            HttpContext ctx) =>
+        {
+            if (!req.HasFormContentType)
+                return Results.BadRequest(new { erreur = "Multipart form-data requis (champ 'fichier')" });
+
+            var form = await req.ReadFormAsync();
+            var fichier = form.Files.GetFile("fichier");
+            if (fichier is null)
+                return Results.BadRequest(new { erreur = "Fichier zip manquant (champ 'fichier')" });
+
+            var deployePar = ctx.User.Identity?.Name;
+            var resultats = new List<DefinitionWorkflowDto>();
+            var erreurs = new List<string>();
+
+            using var zip = new ZipArchive(fichier.OpenReadStream(), ZipArchiveMode.Read);
+
+            // Normaliser les séparateurs (Windows crée des zip avec \)
+            // Grouper les entrées par dossier de premier niveau
+            var parWorkflow = zip.Entries
+                .Select(e => (Entry: e, Path: e.FullName.Replace('\\', '/')))
+                .Where(x => !x.Path.EndsWith('/') && x.Path.Contains('/'))
+                .GroupBy(x => x.Path.Split('/')[0], x => x.Entry);
+
+            foreach (var groupe in parWorkflow)
+            {
+                var nomDossier = groupe.Key;
+                try
+                {
+                    var workflowEntry = groupe.FirstOrDefault(e => e.Name == "workflow.yml");
+                    if (workflowEntry is null)
+                    {
+                        erreurs.Add($"{nomDossier}: workflow.yml manquant");
+                        continue;
+                    }
+
+                    var contenuWorkflow = LireEntree(workflowEntry);
+                    var contenuExtensions = LireEntreeOptionnelle(groupe, "extensions.yml");
+                    var contenuHttpClients = LireEntreeOptionnelle(groupe, "http-clients.yml");
+
+                    // Valider le YAML
+                    DefinitionWorkflowYaml parsed;
+                    try { parsed = YamlParser.ParseDefinition(contenuWorkflow); }
+                    catch (Exception ex)
+                    {
+                        erreurs.Add($"{nomDossier}: YAML invalide — {ex.Message}");
+                        continue;
+                    }
+
+                    var hash = YamlParser.CalculerHashCombine(contenuWorkflow, contenuExtensions, contenuHttpClients);
+
+                    var definition = new DefinitionWorkflow
+                    {
+                        Nom = parsed.Nom ?? nomDossier,
+                        Description = parsed.Description,
+                        Equipe = parsed.Equipe,
+                        ContenuYaml = contenuWorkflow,
+                        ContenuExtensions = contenuExtensions,
+                        ContenuHttpClients = contenuHttpClients,
+                        HashVersion = hash,
+                        DeployePar = deployePar
+                    };
+
+                    var resultat = await repo.CreerOuMettreAJourAsync(definition);
+
+                    // Charger les configs HTTP en mémoire si présentes
+                    if (contenuHttpClients is not null)
+                        configHttp.ChargerDepuisYaml(contenuHttpClients, resultat.Nom);
+
+                    resultats.Add(ToDto(resultat));
+                }
+                catch (Exception ex)
+                {
+                    erreurs.Add($"{nomDossier}: {ex.Message}");
+                }
+            }
+
+            return Results.Ok(new { deployes = resultats, erreurs });
+        }).DisableAntiforgery();
+
+        return app;
+    }
+
+    private static string LireEntree(ZipArchiveEntry entry)
+    {
+        using var stream = entry.Open();
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    private static string? LireEntreeOptionnelle(IGrouping<string, ZipArchiveEntry> groupe, string nomFichier)
+    {
+        var entry = groupe.FirstOrDefault(e => e.Name == nomFichier);
+        return entry is null ? null : LireEntree(entry);
+    }
+
+    private static string GenererMermaid(DefinitionWorkflowYaml wf)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("flowchart TD");
+
+        // Nœuds
+        foreach (var t in wf.Taches)
+        {
+            var id = NettoyerId(t.Id);
+            var label = t.Nom.Replace("\"", "'");
+            var type = t.Type.ToLowerInvariant();
+            var noeud = type switch
+            {
+                "condition" => $"{id}{{\"{label}\"}}",
+                "terminer" or "fin" => $"{id}([\"{label}\"])",
+                _ => $"{id}[\"{label}\"]"
+            };
+            sb.AppendLine($"  {noeud}");
+        }
+
+        sb.AppendLine();
+
+        // Arêtes
+        for (var i = 0; i < wf.Taches.Count; i++)
+        {
+            var t = wf.Taches[i];
+            var id = NettoyerId(t.Id);
+
+            if (t.Branches is { Count: > 0 })
+            {
+                foreach (var b in t.Branches)
+                {
+                    var etiquette = b.Condition.Length > 25 ? b.Condition[..22] + "…" : b.Condition;
+                    sb.AppendLine($"  {id} -->|\"{etiquette}\"| {NettoyerId(b.Aller)}");
+                }
+            }
+            else
+            {
+                var suivant = t.Suivant is not null
+                    ? NettoyerId(t.Suivant)
+                    : i + 1 < wf.Taches.Count ? NettoyerId(wf.Taches[i + 1].Id) : null;
+                if (suivant is not null)
+                    sb.AppendLine($"  {id} --> {suivant}");
+            }
+
+            if (t.EnErreur is not null)
+                sb.AppendLine($"  {id} -.->|erreur| {NettoyerId(t.EnErreur)}");
+        }
+
+        // Styles par type
+        sb.AppendLine();
+        sb.AppendLine("  classDef http fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a");
+        sb.AppendLine("  classDef condition fill:#fef9c3,stroke:#ca8a04,color:#713f12");
+        sb.AppendLine("  classDef terminer fill:#dcfce7,stroke:#16a34a,color:#14532d");
+        sb.AppendLine("  classDef default fill:#f3f4f6,stroke:#9ca3af,color:#111827");
+
+        var parType = wf.Taches.GroupBy(t => t.Type.ToLowerInvariant());
+        foreach (var groupe in parType)
+        {
+            var classe = groupe.Key switch
+            {
+                "condition" => "condition",
+                "terminer" or "fin" => "terminer",
+                "http" => "http",
+                _ => "default"
+            };
+            var ids = string.Join(",", groupe.Select(t => NettoyerId(t.Id)));
+            sb.AppendLine($"  class {ids} {classe}");
+        }
+
+        return sb.ToString();
+    }
+
+    private static string NettoyerId(string id) =>
+        Regex.Replace(id, @"[^a-zA-Z0-9_]", "_");
+
+    private static DefinitionWorkflowDto ToDto(DefinitionWorkflow d) => new(
+        d.Id, d.Nom, d.Description, d.Equipe, d.HashVersion,
+        d.DateCreation, d.DateModification, d.Actif);
+}

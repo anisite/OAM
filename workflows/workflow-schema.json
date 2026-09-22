@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "OAM Workflow Definition",
-  "description": "Schéma de validation pour les définitions de workflow OAM",
+  "title": "OIM Workflow Definition",
+  "description": "Schéma de validation pour les définitions de workflow OIM",
   "type": "object",
   "required": ["nom", "taches"],
   "properties": {

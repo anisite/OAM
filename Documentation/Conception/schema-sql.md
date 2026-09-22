@@ -1,6 +1,6 @@
-# Schéma SQL — OAM
+# Schéma SQL — OIM
 
-> Généré depuis les entités Entity Framework Core (`sources/OAM.Domain/Entities/` + `sources/OAM.Infrastructure/Data/OamDbContext.cs`)  
+> Généré depuis les entités Entity Framework Core (`sources/OIM.Domain/Entities/` + `sources/OIM.Infrastructure/Data/OimDbContext.cs`)  
 > Moteurs supportés : **SQL Server** (principal) · **SQLite** (fallback)
 
 ---

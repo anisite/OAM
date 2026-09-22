@@ -1,9 +1,9 @@
-# Plan de développement — OAM (Orchestrateur d'Actions Métier)
+# Plan de développement — OIM (Orchestrateur d'Actions Métier)
 
 
 Description:
 
-OAM est un système autoportant qui permet d'orchestrer des tâches de simple à complexe, de faire le suivi en temps réel, de faire l'assurance qualité et de configurer via des déploiement azure devops et des endpoints et aussi en partie via une interface fluide et simple à utiliser.
+OIM est un système autoportant qui permet d'orchestrer des tâches de simple à complexe, de faire le suivi en temps réel, de faire l'assurance qualité et de configurer via des déploiement azure devops et des endpoints et aussi en partie via une interface fluide et simple à utiliser.
 ---
 
 ## 1. Infrastructure & Déploiement
@@ -82,7 +82,7 @@ OAM est un système autoportant qui permet d'orchestrer des tâches de simple à
 ### 3.3 Versionnage automatique des configurations de workflow
 
 - **Checksum des fichiers de configuration** (YAML)
-  - Les équipes sont autonomes pour déployer leurs workflow via un endpoint de OAM
+  - Les équipes sont autonomes pour déployer leurs workflow via un endpoint de OIM
   - Journalisation de l'empreinte + date de chargement
 
 ---
@@ -97,7 +97,7 @@ OAM est un système autoportant qui permet d'orchestrer des tâches de simple à
 
 ### 4.2 Mocks
 - Système de mock **obligatoire** pour :
-  - Les tests automatisés lancés en QA via l'interface de OAM avec résultats à l'écran
+  - Les tests automatisés lancés en QA via l'interface de OIM avec résultats à l'écran
   - Les essais en environnement d'acceptation (QA) sans dépendances réelles
 - Mécanisme de **résolution de mock** (`rechercherMock`) :
   - Recherche par critères dans un catalogue de réponses préconfigurées

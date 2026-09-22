@@ -1,4 +1,4 @@
-# OAM — Orchestrateur d'Actions Métier
+# OIM — Orchestrateur d'Actions Métier
 
 Plateforme d'orchestration de workflows basée sur des définitions YAML, avec suivi en temps réel, authentification NTLM→JWT et déploiement continu vers IIS Windows.
 
@@ -29,7 +29,7 @@ Plateforme d'orchestration de workflows basée sur des définitions YAML, avec s
 
 ## 1. Vue d'ensemble
 
-OAM permet aux équipes de définir, déployer et surveiller des workflows d'actions métier sans intervention de l'équipe technique. Chaque workflow est décrit en YAML, versionné par hash SHA256, et exécuté par un moteur qui supporte :
+OIM permet aux équipes de définir, déployer et surveiller des workflows d'actions métier sans intervention de l'équipe technique. Chaque workflow est décrit en YAML, versionné par hash SHA256, et exécuté par un moteur qui supporte :
 
 - Appels HTTP configurables via YAML (`YamlHttpClient`)
 - Conditions et branchements dynamiques
@@ -45,26 +45,26 @@ OAM permet aux équipes de définir, déployer et surveiller des workflows d'act
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   OAM.Frontend                      │
+│                   OIM.Frontend                      │
 │          Vue.js 3 + Pinia + SignalR client          │
 └─────────────────┬───────────────────────────────────┘
                   │ HTTP + WebSocket
 ┌─────────────────▼───────────────────────────────────┐
-│                    OAM.Api                          │
+│                    OIM.Api                          │
 │   ASP.NET Core 10 · Controllers · SignalR Hub       │
 │   Authentification JWT Bearer + NTLM Negotiate      │
 └────────┬──────────────────────┬─────────────────────┘
          │                      │
 ┌────────▼───────┐   ┌──────────▼──────────────────────┐
-│  OAM.Domain    │   │      OAM.Workflow.Core           │
+│  OIM.Domain    │   │      OIM.Workflow.Core           │
 │  Entities      │   │  MoteurWorkflow · Connecteurs    │
 │  Interfaces    │   │  YAML Parser · Handlebars        │
 │  Enums         │   │  GestionnaireMock                │
 └────────┬───────┘   └──────────┬──────────────────────┘
          │                      │
 ┌────────▼──────────────────────▼─────────────────────┐
-│                OAM.Infrastructure                   │
-│          EF Core · Repositories · OamDbContext      │
+│                OIM.Infrastructure                   │
+│          EF Core · Repositories · OimDbContext      │
 │          SQL Server (prod) / SQLite (dev)           │
 └─────────────────────────────────────────────────────┘
 ```
@@ -88,10 +88,10 @@ OAM permet aux équipes de définir, déployer et surveiller des workflows d'act
 ### Backend (développement)
 
 ```powershell
-cd sources\OAM.Api
+cd sources\OIM.Api
 dotnet run
 # Démarre sur http://localhost:5000
-# Crée automatiquement oam_dev.db (SQLite)
+# Crée automatiquement oim_dev.db (SQLite)
 # Seede les mocks depuis seed-mocks.json
 ```
 
@@ -100,7 +100,7 @@ Ou depuis **Visual Studio** : sélectionner le profil **IIS Express** et lancer.
 ### Frontend (développement)
 
 ```bash
-cd sources/OAM.Frontend
+cd sources/OIM.Frontend
 npm install
 npm run dev
 # Démarre sur http://localhost:5173
@@ -117,7 +117,7 @@ $token = (Invoke-RestMethod "http://localhost:5000/api/auth/dev-token").token
 
 # Déployer la définition
 $headers = @{ Authorization = "Bearer $token"; "Content-Type" = "application/json" }
-Invoke-RestMethod "http://localhost:5000/api/definitions/deployer" -Method POST -Headers $headers -InFile sources\OAM.Api\deploy-test.json
+Invoke-RestMethod "http://localhost:5000/api/definitions/deployer" -Method POST -Headers $headers -InFile sources\OIM.Api\deploy-test.json
 
 # Démarrer une instance
 $body = @{ definitionId = "<id retourné>"; donneesEntree = '{"rendezVousId":"RDV-001"}' } | ConvertTo-Json
@@ -129,15 +129,15 @@ Invoke-RestMethod "http://localhost:5000/api/instances/demarrer" -Method POST -H
 ## 5. Structure du projet
 
 ```
-OAM/
-├── OAM.slnx
+OIM/
+├── OIM.slnx
 ├── nuget.config
 ├── README.md
 ├── sources/
-│   ├── OAM.Domain/               # Entités, interfaces, enums
-│   ├── OAM.Infrastructure/       # EF Core, repositories
-│   ├── OAM.Workflow.Core/        # Moteur, connecteurs, YAML, Handlebars
-│   ├── OAM.Api/                  # ASP.NET Core API + Frontend intégré
+│   ├── OIM.Domain/               # Entités, interfaces, enums
+│   ├── OIM.Infrastructure/       # EF Core, repositories
+│   ├── OIM.Workflow.Core/        # Moteur, connecteurs, YAML, Handlebars
+│   ├── OIM.Api/                  # ASP.NET Core API + Frontend intégré
 │   │   ├── Controllers/
 │   │   ├── Auth/
 │   │   ├── Hubs/
@@ -148,7 +148,7 @@ OAM/
 │   │   ├── seed-mocks.json       # Mocks auto-seedés en développement
 │   │   ├── deploy-test.json      # Payload de déploiement exemple
 │   │   └── web.config
-│   └── OAM.Frontend/             # Vue.js 3 SPA
+│   └── OIM.Frontend/             # Vue.js 3 SPA
 │       ├── src/
 │       │   ├── pages/
 │       │   ├── components/
@@ -162,7 +162,7 @@ OAM/
 ├── Documentation/
 │   └── Conception/               # Documentation de conception (voir index ci-dessous)
 ├── tests/
-│   └── OAM.Tests/                # Tests unitaires MSTest
+│   └── OIM.Tests/                # Tests unitaires MSTest
 ├── workflows/
 │   ├── workflow.exemple.yml
 │   ├── extensions.exemple.yml
@@ -217,9 +217,9 @@ Contient les contrats et entités métier. Aucune dépendance vers d'autres couc
 
 ### Base de données
 
-OAM utilise **Entity Framework Core** avec support dual :
+OIM utilise **Entity Framework Core** avec support dual :
 - **SQL Server** en production (connexion par string contenant `Server=`)
-- **SQLite** en développement (connexion `Data Source=oam_dev.db`)
+- **SQLite** en développement (connexion `Data Source=oim_dev.db`)
 
 La détection est automatique dans `Program.cs` à partir de la chaîne de connexion.
 
@@ -483,8 +483,8 @@ Dans `appsettings.json` :
 ```json
 "Jwt": {
   "Secret": "CHANGER-EN-PRODUCTION",
-  "Issuer": "OAM",
-  "Audience": "OAM-Frontend",
+  "Issuer": "OIM",
+  "Audience": "OIM-Frontend",
   "ExpirationMinutes": 480
 }
 ```
@@ -574,7 +574,7 @@ Les mocks permettent de tester les workflows sans appels HTTP réels.
 
 ### Auto-seed en développement
 
-Au démarrage en mode Development, OAM charge automatiquement `seed-mocks.json` :
+Au démarrage en mode Development, OIM charge automatiquement `seed-mocks.json` :
 
 ```json
 [
@@ -605,7 +605,7 @@ POST /api/mocks/batch
 ## 15. Tests
 
 ```bash
-cd tests/OAM.Tests
+cd tests/OIM.Tests
 dotnet test
 ```
 
@@ -648,7 +648,7 @@ Deploy_PROD   (branche release/* + après IT)
 
 ### Déploiement IIS
 
-Chaque environnement utilise `IISWebAppDeploymentOnMachineGroup` vers les serveurs respectifs (`SAT-OAM`, `ACCP-OAM`, `IT-OAM`, `PROD-OAM`).
+Chaque environnement utilise `IISWebAppDeploymentOnMachineGroup` vers les serveurs respectifs (`SAT-OIM`, `ACCP-OIM`, `IT-OIM`, `PROD-OIM`).
 
 ---
 
@@ -659,16 +659,16 @@ Chaque environnement utilise `IISWebAppDeploymentOnMachineGroup` vers les serveu
 ```json
 {
   "ConnectionStrings": {
-    "OamDb": "Server=...;Database=OAM;Trusted_Connection=True;"
+    "OimDb": "Server=...;Database=OIM;Trusted_Connection=True;"
   },
   "Jwt": {
     "Secret": "CLE-SECRETE-MINIMUN-32-CARACTERES",
-    "Issuer": "OAM",
-    "Audience": "OAM-Frontend",
+    "Issuer": "OIM",
+    "Audience": "OIM-Frontend",
     "ExpirationMinutes": 480
   },
   "Cors": {
-    "Origins": ["https://oam.mondomaine.com"]
+    "Origins": ["https://oim.mondomaine.com"]
   }
 }
 ```
@@ -678,7 +678,7 @@ Chaque environnement utilise `IISWebAppDeploymentOnMachineGroup` vers les serveu
 ```json
 {
   "ConnectionStrings": {
-    "OamDb": "Data Source=oam_dev.db"
+    "OimDb": "Data Source=oim_dev.db"
   }
 }
 ```
@@ -707,11 +707,11 @@ Le `web.config` utilise les variables `%LAUNCHER_PATH%` et `%LAUNCHER_ARGS%` rem
 
 ```bash
 # Build du frontend (inclus dans wwwroot)
-cd sources/OAM.Frontend
+cd sources/OIM.Frontend
 npm run build
 
 # Publication de l'API (inclut wwwroot)
-cd ../OAM.Api
+cd ../OIM.Api
 dotnet publish -c Release -o ./publish
 ```
 

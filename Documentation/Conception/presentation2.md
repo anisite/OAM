@@ -1,15 +1,15 @@
-# OAM — Orchestrateur d'Actions Métier
+# OIM — Orchestrateur d'Actions Métier
 ### Présentation à la directrice générale principale
 
 ---
 
-## 1. C'est quoi OAM?
+## 1. C'est quoi OIM?
 
-OAM est un **outil maison** qui automatise les processus d'affaires qui impliquent plusieurs systèmes informatiques.
+OIM est un **outil maison** qui automatise les processus d'affaires qui impliquent plusieurs systèmes informatiques.
 
 Pensez à un processus comme le traitement d'un rendez-vous : il faut vérifier la disponibilité dans un système, réserver dans un autre, puis envoyer une confirmation. Aujourd'hui, ce genre de séquence est souvent programmé à l'intérieur d'une application — ce qui veut dire que chaque changement dans le processus demande une livraison informatique, avec les délais et les coûts que ça implique.
 
-Avec OAM, **ce processus est décrit dans un simple fichier de configuration**. L'équipe responsable peut le modifier et le redéployer elle-même, sans toucher au code. L'outil s'occupe d'exécuter les étapes dans le bon ordre, de surveiller ce qui se passe, et de gérer les erreurs.
+Avec OIM, **ce processus est décrit dans un simple fichier de configuration**. L'équipe responsable peut le modifier et le redéployer elle-même, sans toucher au code. L'outil s'occupe d'exécuter les étapes dans le bon ordre, de surveiller ce qui se passe, et de gérer les erreurs.
 
 ---
 
@@ -22,9 +22,9 @@ Quand un processus d'affaires touche plusieurs systèmes, il faut aujourd'hui :
 - un déploiement informatique à chaque changement,
 - souvent, personne ne sait en temps réel où en est un traitement en cours.
 
-### Ce que OAM change
+### Ce que OIM change
 
-| Situation | Avant OAM | Avec OAM |
+| Situation | Avant OIM | Avec OIM |
 |---|---|---|
 | Modifier un processus | Développeur + délai de livraison | L'équipe responsable modifie le fichier et redéploie |
 | Suivre un traitement en cours | Logs techniques, accès limité | Écran de suivi en direct, accessible à l'équipe |
@@ -34,11 +34,11 @@ Quand un processus d'affaires touche plusieurs systèmes, il faut aujourd'hui :
 
 ---
 
-## 3. Comment on développe OAM?
+## 3. Comment on développe OIM?
 
 ### Notre approche
 
-On développe OAM de façon **itérative et planifiée** : chaque nouvelle fonctionnalité est d'abord définie dans un plan partagé, développée, validée par des tests automatisés, puis livrée via un pipeline de déploiement continu.
+On développe OIM de façon **itérative et planifiée** : chaque nouvelle fonctionnalité est d'abord définie dans un plan partagé, développée, validée par des tests automatisés, puis livrée via un pipeline de déploiement continu.
 
 L'outil est hébergé sur les infrastructures existantes du ministère (serveurs Windows) et utilise l'authentification Windows déjà en place — pas de nouvelle infrastructure à gérer.
 
@@ -50,7 +50,7 @@ L'outil est hébergé sur les infrastructures existantes du ministère (serveurs
 
 ### Ce qu'on peut ajouter facilement
 
-OAM est conçu pour grandir : de nouveaux types d'actions peuvent être ajoutés à la plateforme sans toucher à ce qui fonctionne déjà.
+OIM est conçu pour grandir : de nouveaux types d'actions peuvent être ajoutés à la plateforme sans toucher à ce qui fonctionne déjà.
 
 ---
 
@@ -60,7 +60,7 @@ C'est là que l'investissement prend tout son sens.
 
 ### Une seule plateforme pour plusieurs équipes
 
-OAM est pensé dès le départ pour être **partagé entre plusieurs équipes** sans multiplier les installations. Chaque équipe voit ses propres processus dans l'outil, mais elles tournent toutes sur la même plateforme.
+OIM est pensé dès le départ pour être **partagé entre plusieurs équipes** sans multiplier les installations. Chaque équipe voit ses propres processus dans l'outil, mais elles tournent toutes sur la même plateforme.
 
 ### Ce qu'on ne refait pas à chaque fois
 
@@ -83,4 +83,4 @@ Quand une équipe développe une façon de communiquer avec un système (ex. : l
 
 ## En résumé
 
-> OAM est un **outil de coordination interne** qui automatise les processus d'affaires complexes, donne une visibilité en temps réel sur leur état, et permet aux équipes d'évoluer rapidement sans dépendre des délais informatiques à chaque changement. Conçu pour être partagé entre équipes, il génère des économies croissantes à mesure qu'il est adopté — parce que chaque investissement bénéficie à l'ensemble de l'organisation.
+> OIM est un **outil de coordination interne** qui automatise les processus d'affaires complexes, donne une visibilité en temps réel sur leur état, et permet aux équipes d'évoluer rapidement sans dépendre des délais informatiques à chaque changement. Conçu pour être partagé entre équipes, il génère des économies croissantes à mesure qu'il est adopté — parce que chaque investissement bénéficie à l'ensemble de l'organisation.

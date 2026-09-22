@@ -15,9 +15,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\OAM.Domain\OAM.Domain.csproj" />
-    <ProjectReference Include="..\..\src\OAM.Infrastructure\OAM.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\OAM.Workflow.Core\OAM.Workflow.Core.csproj" />
+    <ProjectReference Include="..\..\sources\OAM.Domain\OAM.Domain.csproj" />
+    <ProjectReference Include="..\..\sources\OAM.Infrastructure\OAM.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\sources\OAM.Workflow.Core\OAM.Workflow.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

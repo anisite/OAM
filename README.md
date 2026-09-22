@@ -88,7 +88,7 @@ OAM permet aux équipes de définir, déployer et surveiller des workflows d'act
 ### Backend (développement)
 
 ```powershell
-cd src\OAM.Api
+cd sources\OAM.Api
 dotnet run
 # Démarre sur http://localhost:5000
 # Crée automatiquement oam_dev.db (SQLite)
@@ -100,7 +100,7 @@ Ou depuis **Visual Studio** : sélectionner le profil **IIS Express** et lancer.
 ### Frontend (développement)
 
 ```bash
-cd src/OAM.Frontend
+cd sources/OAM.Frontend
 npm install
 npm run dev
 # Démarre sur http://localhost:5173
@@ -117,7 +117,7 @@ $token = (Invoke-RestMethod "http://localhost:5000/api/auth/dev-token").token
 
 # Déployer la définition
 $headers = @{ Authorization = "Bearer $token"; "Content-Type" = "application/json" }
-Invoke-RestMethod "http://localhost:5000/api/definitions/deployer" -Method POST -Headers $headers -InFile src\OAM.Api\deploy-test.json
+Invoke-RestMethod "http://localhost:5000/api/definitions/deployer" -Method POST -Headers $headers -InFile sources\OAM.Api\deploy-test.json
 
 # Démarrer une instance
 $body = @{ definitionId = "<id retourné>"; donneesEntree = '{"rendezVousId":"RDV-001"}' } | ConvertTo-Json
@@ -130,10 +130,10 @@ Invoke-RestMethod "http://localhost:5000/api/instances/demarrer" -Method POST -H
 
 ```
 OAM/
-├── OAM.sln
+├── OAM.slnx
 ├── nuget.config
 ├── README.md
-├── src/
+├── sources/
 │   ├── OAM.Domain/               # Entités, interfaces, enums
 │   ├── OAM.Infrastructure/       # EF Core, repositories
 │   ├── OAM.Workflow.Core/        # Moteur, connecteurs, YAML, Handlebars
@@ -159,6 +159,8 @@ OAM/
 │       ├── index.html
 │       ├── vite.config.js
 │       └── package.json
+├── Documentation/
+│   └── Conception/               # Documentation de conception (voir index ci-dessous)
 ├── tests/
 │   └── OAM.Tests/                # Tests unitaires MSTest
 ├── workflows/
@@ -168,6 +170,18 @@ OAM/
 └── pipelines/
     └── azure-pipelines.yml
 ```
+
+### Documentation
+
+| Fichier | Contenu |
+|---|---|
+| [utilisation.md](Documentation/Conception/utilisation.md) | Guide d'utilisation |
+| [schema-sql.md](Documentation/Conception/schema-sql.md) | Schéma SQL généré depuis les entités EF Core |
+| [plan_dev.md](Documentation/Conception/plan_dev.md) | Plan de développement |
+| [presentation2.md](Documentation/Conception/presentation2.md) | Présentation du projet |
+| [features-oim-vs-kogito.md](Documentation/Conception/features-oim-vs-kogito.md) | Comparatif fonctionnel OIM / Kogito |
+| [comparaison-oim-elsa-kogito.md](Documentation/Conception/comparaison-oim-elsa-kogito.md) | Comparaison OIM / Elsa / Kogito |
+| [comparaison-oim-direction.md](Documentation/Conception/comparaison-oim-direction.md) | Synthèse pour la direction |
 
 ---
 
@@ -693,7 +707,7 @@ Le `web.config` utilise les variables `%LAUNCHER_PATH%` et `%LAUNCHER_ARGS%` rem
 
 ```bash
 # Build du frontend (inclus dans wwwroot)
-cd src/OAM.Frontend
+cd sources/OAM.Frontend
 npm run build
 
 # Publication de l'API (inclut wwwroot)

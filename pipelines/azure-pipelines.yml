@@ -64,7 +64,7 @@ stages:
 
           # Build frontend Vue.js
           - script: |
-              cd src/OAM.Frontend
+              cd sources/OAM.Frontend
               npm ci
               npm run build
             displayName: 'Build Frontend Vue.js'
@@ -74,7 +74,7 @@ stages:
             displayName: 'dotnet publish API'
             inputs:
               command: 'publish'
-              projects: 'src/OAM.Api/OAM.Api.csproj'
+              projects: 'sources/OAM.Api/OAM.Api.csproj'
               arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/api'
 
           - task: PublishBuildArtifacts@1

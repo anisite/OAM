@@ -1,9 +1,9 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/OAM.Api/OAM.Api.csproj" />
-    <Project Path="src/OAM.Domain/OAM.Domain.csproj" />
-    <Project Path="src/OAM.Infrastructure/OAM.Infrastructure.csproj" />
-    <Project Path="src/OAM.Workflow.Core/OAM.Workflow.Core.csproj" />
+  <Folder Name="/sources/">
+    <Project Path="sources/OAM.Api/OAM.Api.csproj" />
+    <Project Path="sources/OAM.Domain/OAM.Domain.csproj" />
+    <Project Path="sources/OAM.Infrastructure/OAM.Infrastructure.csproj" />
+    <Project Path="sources/OAM.Workflow.Core/OAM.Workflow.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OAM.Tests/OAM.Tests.csproj" />

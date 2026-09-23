@@ -307,8 +307,22 @@ cd ../OIM.Api; dotnet publish -c Release -o ./publish
 ```
 
 Un seul site IIS (API + interface). Activer l'authentification Windows sur le site.
-Le compte du pool d'applications doit pouvoir créer le schéma au premier démarrage
-(ou exécuter une fois avec un compte `db_owner`).
+
+### Base de données
+
+Deux options :
+
+- **Création par l'application** : le compte du pool d'applications doit pouvoir créer les schémas
+  au premier démarrage (ou exécuter une fois avec un compte `db_owner`).
+- **Création par un DBA** : [base-de-donnees/oim-creation.sql](base-de-donnees/oim-creation.sql) crée tout
+  (tables, procédures et rôle `dt_runtime` de DurableTask, schéma `oim`, mode de task hub, rôle
+  `oim_application`). Créer la base en `COLLATE Latin1_General_100_BIN2_UTF8` (comme le fournisseur),
+  exécuter le script, puis ajouter le compte de l'application au rôle `oim_application` et mettre
+  `Oim:CreerBaseSiAbsente` à `false`. L'application n'a alors besoin d'aucun droit DDL.
+
+Le script est idempotent. Après une mise à jour du paquet `Microsoft.DurableTask.SqlServer`, le
+régénérer (`base-de-donnees/Generer-ScriptBase.ps1`) et le faire exécuter avant de déployer
+l'application : avec un compte `oim_application`, elle refuse de démarrer si le schéma n'est pas à jour.
 
 ### Plusieurs serveurs sur la même base
 

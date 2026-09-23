@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://oim/schemas/cas-test.schema.json",
+  "title": "Cas de test métier OIM",
+  "description": "Fichier tests/<nom>.yml d'un paquet : exécuté sur le vrai moteur, sans appel ni courriel réel.",
+  "type": "object",
+  "required": ["attendu"],
+  "additionalProperties": false,
+  "properties": {
+    "nom": { "type": "string" },
+    "description": { "type": "string" },
+    "entrees": { "type": "object", "description": "Entrées de l'instance (comme le corps de POST /api/processus/{id}/instances)." },
+    "mocks": {
+      "type": "object",
+      "description": "Par id d'étape http (ou sousProcessus). Une liste = une réponse par passage (la dernière se répète).",
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/definitions/mock" },
+          { "type": "array", "items": { "$ref": "#/definitions/mock" } }
+        ]
+      }
+    },
+    "scenario": {
+      "type": "array",
+      "description": "Ce que fait le monde extérieur, dans l'ordre.",
+      "items": {
+        "type": "object",
+        "required": ["attendre"],
+        "additionalProperties": false,
+        "properties": {
+          "attendre": { "type": "string", "description": "Id de l'étape attendreEvenement à laquelle l'instance doit être en attente." },
+          "evenement": { "type": "object", "description": "Événements envoyés : { <nom>: <données> }." },
+          "delaiExpire": { "type": "boolean", "description": "Simule l'expiration du délai de l'attente (siDelaiExpire)." }
+        }
+      }
+    },
+    "attendu": {
+      "type": "object",
+      "description": "Comparaison partielle : seules les clés présentes sont vérifiées.",
+      "properties": {
+        "statut": { "type": "string", "description": "Completed, Running (en attente), Failed, Terminated — ou Termine, EnCours, EnEchec." },
+        "etape": { "type": "string", "description": "Étape courante (instance en attente)." },
+        "attente": { "type": "string", "description": "Événement attendu (instance en attente)." },
+        "etapeFinale": { "type": "string" },
+        "parcours": { "type": "array", "items": { "type": "string" }, "description": "Étapes visitées, dans l'ordre (liste exacte)." },
+        "statutMetier": { "type": "string" },
+        "message": { "type": "string" },
+        "reponse": { "type": "object", "description": "Réponse synchrone : { statutHttp, corps }." },
+        "sorties": { "type": "object", "description": "Sorties par id d'étape (partiel)." },
+        "variables": { "type": "object" },
+        "courriels": { "type": "array", "description": "Courriels, dans l'ordre : { gabarit, a, cc, sujet, corps } (partiel).", "items": { "type": "object" } },
+        "erreur": { "type": "string", "description": "Extrait attendu dans le message d'erreur (instance en échec)." }
+      }
+    },
+    "delaiMax": { "type": "string", "description": "Durée maximale du cas (défaut 60s)." }
+  },
+  "definitions": {
+    "mock": {
+      "type": "object",
+      "properties": {
+        "statut": { "type": "integer", "description": "Statut HTTP simulé (défaut 200). Hors 2xx : échec comme un vrai appel (retry, siErreur)." },
+        "corps": { "description": "Corps de la réponse (devient etapes.<id>.sortie)." }
+      }
+    }
+  }
+}

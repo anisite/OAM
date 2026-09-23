@@ -1,724 +1,339 @@
-# OIM — Orchestrateur d'Actions Métier
+# OIM — Orchestrateur de processus
 
-Plateforme d'orchestration de workflows basée sur des définitions YAML, avec suivi en temps réel, authentification NTLM→JWT et déploiement continu vers IIS Windows.
-
----
-
-## Table des matières
-
-1. [Vue d'ensemble](#1-vue-densemble)
-2. [Architecture](#2-architecture)
-3. [Prérequis](#3-prérequis)
-4. [Démarrage rapide](#4-démarrage-rapide)
-5. [Structure du projet](#5-structure-du-projet)
-6. [Couche Domain](#6-couche-domain)
-7. [Couche Infrastructure](#7-couche-infrastructure)
-8. [Moteur de workflow](#8-moteur-de-workflow)
-9. [API REST](#9-api-rest)
-10. [Frontend Vue.js](#10-frontend-vuejs)
-11. [Temps réel — SignalR](#11-temps-réel--signalr)
-12. [Authentification](#12-authentification)
-13. [Définitions YAML](#13-définitions-yaml)
-14. [Système de mocks](#14-système-de-mocks)
-15. [Tests](#15-tests)
-16. [CI/CD Azure DevOps](#16-cicd-azure-devops)
-17. [Configuration](#17-configuration)
-18. [Déploiement IIS](#18-déploiement-iis)
-
----
-
-## 1. Vue d'ensemble
-
-OIM permet aux équipes de définir, déployer et surveiller des workflows d'actions métier sans intervention de l'équipe technique. Chaque workflow est décrit en YAML, versionné par hash SHA256, et exécuté par un moteur qui supporte :
-
-- Appels HTTP configurables via YAML (`YamlHttpClient`)
-- Conditions et branchements dynamiques
-- Pause/reprise sur point d'entrée externe (hooks)
-- Mocks intégrés pour les environnements de test
-- Résolution de variables via Handlebars + extraction JSONPath
-- Traçabilité bout-en-bout par `CorrelationId`
-- Suivi temps réel via SignalR
-
----
-
-## 2. Architecture
+Orchestrateur de processus métier décrits en **YAML déployable**, exécutés par
+**DurableTask.Core** avec persistance **SQL Server** (`Microsoft.DurableTask.SqlServer`),
+et piloté par une interface **Vue 3 + utd-webcomponents** (tableau de bord, suivi des
+instances, concepteur par glisser-déposer).
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   OIM.Frontend                      │
-│          Vue.js 3 + Pinia + SignalR client          │
-└─────────────────┬───────────────────────────────────┘
-                  │ HTTP + WebSocket
-┌─────────────────▼───────────────────────────────────┐
-│                    OIM.Api                          │
-│   ASP.NET Core 10 · Controllers · SignalR Hub       │
-│   Authentification JWT Bearer + NTLM Negotiate      │
-└────────┬──────────────────────┬─────────────────────┘
-         │                      │
-┌────────▼───────┐   ┌──────────▼──────────────────────┐
-│  OIM.Domain    │   │      OIM.Workflow.Core           │
-│  Entities      │   │  MoteurWorkflow · Connecteurs    │
-│  Interfaces    │   │  YAML Parser · Handlebars        │
-│  Enums         │   │  GestionnaireMock                │
-└────────┬───────┘   └──────────┬──────────────────────┘
-         │                      │
-┌────────▼──────────────────────▼─────────────────────┐
-│                OIM.Infrastructure                   │
-│          EF Core · Repositories · OimDbContext      │
-│          SQL Server (prod) / SQLite (dev)           │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────── OIM.Frontend (Vue 3, UTD, Vue Flow) ───────────────────────────┐
+│ Tableau de bord · Instances (suivi, événements, pilotage) · Processus · Concepteur visuel │
+└──────────────────────────────────────────┬─────────────────────────────────────────────────┘
+                                           │ /api (servi par OIM.Api, même site IIS)
+┌──────────────────────────────────────────▼─────────────────────────────────────────────────┐
+│ OIM.Api — minimal APIs, Windows (Negotiate), ProblemDetails                                │
+├────────────────────────────────────────────────────────────────────────────────────────────┤
+│ OIM.Moteur                                                                                  │
+│  Definitions   lecture/validation YAML, paquet (YAML + gabarits), durées, entrées          │
+│  Expressions   langage {{ … }} pur et déterministe (conditions, interpolation)             │
+│  Orchestration OrchestrationProcessus : UN interpréteur pour toutes les définitions        │
+│                activités : chargerDefinition · http (YamlHttpClient) · courriel            │
+│  Stockage      définitions versionnées (schéma oim)                                         │
+│  Pilotage      démarrer, événements, suspendre/reprendre/interrompre/relancer, requêtes    │
+│  Hebergement   TaskHubWorker + TaskHubClient (SqlOrchestrationService)                      │
+└──────────────────────────────────────────┬─────────────────────────────────────────────────┘
+                                           │
+                    SQL Server — schéma dt (DurableTask) + schéma oim (définitions)
 ```
 
----
+## Démarrage (développement)
 
-## 3. Prérequis
-
-| Composant | Version minimale |
-|-----------|-----------------|
-| .NET SDK | 10.0 |
-| Node.js | 22.x |
-| SQL Server | 2019 (prod) / SQLite (dev) |
-| Visual Studio | 2022 Community ou supérieur |
-| IIS + ASP.NET Core Hosting Bundle | Pour déploiement |
-
----
-
-## 4. Démarrage rapide
-
-### Backend (développement)
+Prérequis : .NET 10, Node 22, SQL Server ou LocalDB.
 
 ```powershell
-cd sources\OIM.Api
+# 1. Base : instance LocalDB dédiée (la base OIM est créée au démarrage)
+sqllocaldb create OIM -s
+
+# 2. API + moteur (http://localhost:5080) — déploie automatiquement ./definitions
+cd sources/OIM.Api
 dotnet run
-# Démarre sur http://localhost:5000
-# Crée automatiquement oim_dev.db (SQLite)
-# Seede les mocks depuis seed-mocks.json
-```
 
-Ou depuis **Visual Studio** : sélectionner le profil **IIS Express** et lancer.
-
-### Frontend (développement)
-
-```bash
+# 3. Interface (http://localhost:5173, proxy /api → 5080)
 cd sources/OIM.Frontend
 npm install
 npm run dev
-# Démarre sur http://localhost:5173
-# Proxy /api et /hubs vers http://localhost:5000
 ```
 
-Ouvrir `http://localhost:5173` dans le navigateur.
+En développement, les courriels sont écrits en `.eml` dans `sources/OIM.Api/App_Data/courriels`
+et l'authentification est désactivée (`Oim:Securite:Active = false`).
 
-### Déployer un workflow exemple
+Essai rapide :
 
 ```powershell
-# Obtenir un token dev
-$token = (Invoke-RestMethod "http://localhost:5000/api/auth/dev-token").token
-
-# Déployer la définition
-$headers = @{ Authorization = "Bearer $token"; "Content-Type" = "application/json" }
-Invoke-RestMethod "http://localhost:5000/api/definitions/deployer" -Method POST -Headers $headers -InFile sources\OIM.Api\deploy-test.json
-
-# Démarrer une instance
-$body = @{ definitionId = "<id retourné>"; donneesEntree = '{"rendezVousId":"RDV-001"}' } | ConvertTo-Json
-Invoke-RestMethod "http://localhost:5000/api/instances/demarrer" -Method POST -Headers $headers -Body $body
+$api = "http://localhost:5080/api"
+Invoke-RestMethod "$api/processus/traitement-demande/instances?instanceId=dossier-42" -Method Post `
+  -ContentType application/json -Body '{ "dossierId": 42, "courriel": "citoyen@exemple.com" }'
+Invoke-RestMethod "$api/instances/dossier-42/statut"            # En attente d'approbation
+Invoke-RestMethod "$api/instances/dossier-42/evenements/decision" -Method Post `
+  -ContentType application/json -Body '{ "approuve": true }'
+Invoke-RestMethod "$api/instances/dossier-42/statut"            # message : Confirmation #D-2026-00042
 ```
 
----
+## Définir un processus
 
-## 5. Structure du projet
+Un **paquet** = le YAML du processus + ses fichiers annexes (gabarits de requêtes et de
+courriels). Voir l'exemple complet dans [definitions/traitement-demande](definitions/traitement-demande).
 
-```
-OIM/
-├── OIM.slnx
-├── nuget.config
-├── README.md
-├── sources/
-│   ├── OIM.Domain/               # Entités, interfaces, enums
-│   ├── OIM.Infrastructure/       # EF Core, repositories
-│   ├── OIM.Workflow.Core/        # Moteur, connecteurs, YAML, Handlebars
-│   ├── OIM.Api/                  # ASP.NET Core API + Frontend intégré
-│   │   ├── Controllers/
-│   │   ├── Auth/
-│   │   ├── Hubs/
-│   │   ├── Dtos/
-│   │   ├── Properties/launchSettings.json
-│   │   ├── appsettings.json
-│   │   ├── appsettings.Development.json
-│   │   ├── seed-mocks.json       # Mocks auto-seedés en développement
-│   │   ├── deploy-test.json      # Payload de déploiement exemple
-│   │   └── web.config
-│   └── OIM.Frontend/             # Vue.js 3 SPA
-│       ├── src/
-│       │   ├── pages/
-│       │   ├── components/
-│       │   ├── stores/
-│       │   ├── composables/
-│       │   ├── router/
-│       │   └── assets/
-│       ├── index.html
-│       ├── vite.config.js
-│       └── package.json
-├── Documentation/
-│   └── Conception/               # Documentation de conception (voir index ci-dessous)
-├── tests/
-│   └── OIM.Tests/                # Tests unitaires MSTest
-├── workflows/
-│   ├── workflow.exemple.yml
-│   ├── extensions.exemple.yml
-│   └── workflow-schema.json      # Schéma JSON pour validation IDE
-└── pipelines/
-    └── azure-pipelines.yml
+```yaml
+# yaml-language-server: $schema=../../schemas/processus.schema.json
+id: traitement-demande
+nom: Traitement d'une demande
+entrees:
+  dossierId: { type: int, requis: true }
+  courriel:  { type: string, requis: true }
+
+etapes:
+  - id: valider
+    type: http
+    requete: valider-dossier.yml
+    donnees: { id: "{{ entrees.dossierId }}" }
+    retry: { tentatives: 3, delai: 00:00:30, backoff: 2 }
+    statut: "Validation du dossier"
+    suivant: approbation
+
+  - id: approbation
+    type: attendreEvenement
+    evenement: decision
+    delai: 5.00:00:00
+    statut: "En attente d'approbation"
+    siDelaiExpire: relance
+    suivant:
+      - si: "{{ evenement.approuve == true }}"
+        aller: confirmer
+      - sinon: refuser
+  # …
 ```
 
-### Documentation
+### Types d'étapes
 
-| Fichier | Contenu |
+| Type | Propriétés | Traduction DurableTask |
+|------|------------|------------------------|
+| `http` | `requete` (gabarit YamlHttpClient, `fichier.yml` ou `fichier.yml#cle`), `donnees` | activité `oim.http` (+ `retry`) |
+| `attendreEvenement` | `evenement`, `delai`, `siDelaiExpire` | événement externe + `CreateTimer` (la première des deux gagne) |
+| `courriel` | `gabarit`, `a`, `cc`, `cci`, `donnees` | activité `oim.courriel` (+ `retry`) |
+| `delai` | `duree` ou `jusqua` | `CreateTimer` durable |
+| `decision` | branches dans `suivant` | — |
+| `definir` | `variables: { nom: valeur }` | — (état de l'orchestration) |
+| `sousProcessus` | `processus`, `version`, `entrees` | `CreateSubOrchestrationInstance` (+ `retry`) |
+| `reponse` | `statutHttp` (défaut 200), `corps` | statut personnalisé lu par l'API — le processus continue |
+
+Propriétés communes : `statut` (statut métier affiché), `message` (retourné au client, évalué
+après l'étape), `suivant`, `fin`, `siErreur`, `retry { tentatives, delai, backoff, delaiMax }`.
+
+- **Départ** : la première étape de la liste.
+- **Suivant** : `suivant: etape`, ou une liste de `{ si, aller }` terminée par `{ sinon }`.
+  Sans `suivant` (ou avec `fin: true`), le processus se termine.
+- **Erreurs** : après épuisement des reprises, `siErreur` mène à une étape de compensation
+  (message disponible dans `erreur.message`); sinon l'instance passe **en échec** et peut
+  être **relancée** depuis le tableau de bord (rewind : seule l'activité échouée est rejouée).
+- **Événement reçu en avance** : un événement arrivé alors que l'étape d'attente n'est pas
+  encore active (ex. pendant une relance) est conservé pour la prochaine attente de ce nom.
+- **Durées** : `00:00:30`, `5.00:00:00`, `30s`, `15m`, `2h`, `5j`, `P5D`.
+
+### Expressions `{{ … }}`
+
+Une valeur composée d'une seule expression conserve son type (`"{{ entrees.dossierId }}"` → nombre);
+sinon les expressions sont interpolées en texte.
+
+| Variables | |
 |---|---|
-| [utilisation.md](Documentation/Conception/utilisation.md) | Guide d'utilisation |
-| [schema-sql.md](Documentation/Conception/schema-sql.md) | Schéma SQL généré depuis les entités EF Core |
-| [plan_dev.md](Documentation/Conception/plan_dev.md) | Plan de développement |
-| [presentation2.md](Documentation/Conception/presentation2.md) | Présentation du projet |
-| [features-oim-vs-kogito.md](Documentation/Conception/features-oim-vs-kogito.md) | Comparatif fonctionnel OIM / Kogito |
-| [comparaison-oim-elsa-kogito.md](Documentation/Conception/comparaison-oim-elsa-kogito.md) | Comparaison OIM / Elsa / Kogito |
-| [comparaison-oim-direction.md](Documentation/Conception/comparaison-oim-direction.md) | Synthèse pour la direction |
+| `entrees.<nom>` | entrées normalisées de l'instance |
+| `etapes.<id>.sortie` | sortie d'une étape (corps JSON d'un appel HTTP, données d'un événement…) |
+| `evenement` | données du dernier événement reçu |
+| `variables.<nom>` | valeurs calculées par une étape `definir` |
+| `erreur.message`, `erreur.etape` | après un `siErreur` |
+| `instance.id`, `instance.processus`, `instance.version`, `maintenant` | contexte d'exécution |
 
----
+Opérateurs : `== != > < >= <=`, `&& || !` (ou `et ou non`), `+ - * / %`, `a ?? b`, `c ? a : b`.
+Fonctions : `longueur`, `vide`, `contient`, `commencePar`, `minuscule`, `majuscule`, `texte`,
+`nombre`, `arrondi`, `premier`, `joindre`, `json`, `ajouterJours`, `ajouterHeures`, `formaterDate`.
+Les expressions sont **pures** (aucune horloge, aucun accès externe) : c'est ce qui les rend
+sûres lors des relectures DurableTask.
 
-## 6. Couche Domain
+### Gabarits
 
-Contient les contrats et entités métier. Aucune dépendance vers d'autres couches.
+- **Requête HTTP** : fichier YamlHttpClient (`http_client: <cle>: …`). Le modèle Handlebars est
+  la valeur de `donnees` de l'étape (par défaut, tout le contexte). Un statut non 2xx fait échouer
+  l'activité (donc déclenche `retry`). Le bloc `mock` permet de simuler le service.
+- **Courriel** : `gabarits/<nom>.yml` avec `sujet`, `corps` (HTML par défaut, `format: texte`
+  sinon), `a`/`cc`/`de` optionnels. Syntaxe Handlebars sur le contexte (`{{entrees.x}}`,
+  `{{#if evenement.motif}}…{{/if}}`).
 
-### Entités
+## Tests métier
 
-| Entité | Description |
-|--------|-------------|
-| `DefinitionWorkflow` | Gabarit d'un workflow (YAML + hash SHA256) |
-| `VersionDefinitionWorkflow` | Historique de chaque déploiement (audit trail) |
-| `InstanceWorkflow` | Exécution concrète d'une définition |
-| `ExecutionTache` | Exécution d'une tâche individuelle dans une instance |
-
-### Enums
-
-**EtatWorkflow** : `EnAttente` · `EnCours` · `EnPause` · `EnErreur` · `Termine` · `Annule`
-
-**EtatTache** : `EnAttente` · `EnCours` · `Reussie` · `EnErreur` · `Ignoree` · `EnPause`
-
-### Interfaces clés
-
-- **`IMoteurWorkflow`** — `DemarrerAsync`, `ReprendreAsync`, `ReprendreTacheAsync`, `PauserAsync`, `AnnulerAsync`
-- **`IConnecteur`** — `ExecuterAsync(ContexteConnecteur)` → `ResultatConnecteur`
-- **`INotificateurWorkflow`** — Notifications SignalR pour chaque transition d'état
-- **`IDefinitionWorkflowRepository`**, **`IInstanceWorkflowRepository`**, **`IExecutionTacheRepository`**
-
----
-
-## 7. Couche Infrastructure
-
-### Base de données
-
-OIM utilise **Entity Framework Core** avec support dual :
-- **SQL Server** en production (connexion par string contenant `Server=`)
-- **SQLite** en développement (connexion `Data Source=oim_dev.db`)
-
-La détection est automatique dans `Program.cs` à partir de la chaîne de connexion.
-
-En développement, `EnsureCreated()` crée automatiquement le schéma au démarrage.
-
-### Tables principales
-
-| Table | Clé | Description |
-|-------|-----|-------------|
-| `DefinitionsWorkflow` | Nom (unique) | Gabarits de workflows |
-| `VersionsDefinitionWorkflow` | FK vers définition | Historique des versions |
-| `InstancesWorkflow` | CorrelationId (indexé) | Instances d'exécution |
-| `ExecutionsTache` | (InstanceId, NomTache) | Tâches par instance |
-
-Les états (`Etat`) sont stockés en base sous forme de **chaîne de caractères** (ex. `"EnCours"`) pour la lisibilité.
-
----
-
-## 8. Moteur de workflow
-
-### Cycle d'exécution
-
-```
-DemarrerAsync()
-  ├─ Créer InstanceWorkflow (état: EnCours)
-  ├─ Notifier SignalR
-  └─ ExecuterTachesAsync()
-       ├─ Pour chaque tâche:
-       │   ├─ Évaluer condition Handlebars → si faux: Ignoree, passer à suivant
-       │   ├─ Résoudre paramètres (Handlebars)
-       │   ├─ Sélectionner connecteur (mock prioritaire si disponible)
-       │   ├─ Exécuter connecteur
-       │   ├─ Si succès: stocker sortie dans contexte, déterminer suivant
-       │   ├─ Si erreur: MarquerEnErreurAsync → arrêter
-       │   └─ Si hook: mettre en pause → arrêter, attendre callback externe
-       └─ Toutes tâches terminées → Etat: Termine
-```
-
-### Résolution de variables
-
-Les paramètres de chaque tâche sont résolus via **Handlebars** :
+Chaque paquet peut contenir des cas de test : `tests/<nom>.yml` (schéma :
+[schemas/cas-test.schema.json](schemas/cas-test.schema.json)). Un cas décrit les entrées, les
+réponses simulées des services, ce que fait le monde extérieur, et le résultat attendu.
 
 ```yaml
-parametres:
-  url: "https://api.example.com/rdv/{{ rendezVousId }}"
-  token: "{{ config.auth.token }}"
-  id: "{{ tache.rechercherRendezVous.output.id }}"
+nom: Relance de l'approbateur après le délai
+entrees: { dossierId: 44, courriel: citoyen@exemple.com }
+
+mocks:                                  # par id d'étape http (liste = une réponse par passage)
+  valider: { statut: 200, corps: { valide: true, numero: D-44 } }
+
+scenario:
+  - attendre: approbation
+    delaiExpire: true                   # simule les 5 jours écoulés
+  - attendre: approbation
+    evenement: { decision: { approuve: true } }
+
+attendu:                                # comparaison partielle
+  statut: Completed
+  parcours: [valider, accuser, approbation, relance, approbation, confirmer]
+  reponse: { statutHttp: 201, corps: { numero: D-44 } }
+  courriels:
+    - a: [approbateurs@exemple.gouv.qc.ca]
+    - a: [citoyen@exemple.com]
 ```
 
-Le contexte d'exécution (`ContexteExecution`) est un dictionnaire JSON persisté en base, mis à jour après chaque tâche réussie.
+**Exécution** : sur le vrai moteur DurableTask, en mode test. Le paquet est enregistré comme
+brouillon (table `oim.Brouillons`, lisible par tous les nœuds). Chaque cas démarre une instance :
+- **appels HTTP** : le gabarit est chargé et la requête construite (URL, en-têtes : les erreurs de
+  gabarit sont détectées), mais c'est le mock qui répond. Un statut hors 2xx échoue comme un vrai
+  appel (reprises accélérées, puis `siErreur` ou échec);
+- **courriels** : entièrement rendus, jamais envoyés (comparables dans `attendu.courriels`);
+- **délais** : aucune minuterie réelle; l'expiration d'une attente est déclenchée par le scénario;
+- **sous-processus** : remplacés par leur mock (la sortie du processus enfant).
 
-### Extraction JSONPath
+Les instances de test (`~test-…`) sont purgées à la fin et n'apparaissent jamais au tableau de bord
+(option « conserver » pour les inspecter).
 
-Les mappings `output` extraient des valeurs de la réponse via JSONPath :
+| `attendu` | Vérifie |
+|-----------|---------|
+| `statut` | `Completed`, `Running` (en attente), `Failed`, `Terminated` — ou `Termine`, `EnCours`, `EnEchec` |
+| `etape`, `attente` | étape et événement attendus quand l'instance reste en attente |
+| `etapeFinale`, `parcours` | dernière étape; liste exacte des étapes visitées |
+| `statutMetier`, `message` | statut personnalisé et message au client |
+| `reponse` | réponse synchrone `{ statutHttp, corps }` |
+| `sorties`, `variables` | sorties par étape, variables (partiel) |
+| `courriels` | courriels dans l'ordre : `gabarit`, `a`, `cc`, `sujet`, `corps` (partiel) |
+| `erreur` | extrait du message d'erreur |
+
+**Où ils s'exécutent**
+
+| | |
+|---|---|
+| Déploiement (API, interface) | avant d'enregistrer la version. `Oim:Tests:AuDeploiement` : `Bloquant` (défaut : un échec refuse la version, HTTP 422 avec le rapport; `?ignorerTests=true` pour forcer), `Avertissement`, `Desactive`. Pas au démarrage (dossier), le moteur n'étant pas encore lancé |
+| API | `POST /api/definitions/{id}/tests?version=&cas=&conserver=` (version déployée), `POST /api/definitions/tests` `{ yaml, fichiers }` (paquet non déployé) |
+| Interface | onglet **Tests métier** d'un processus; bouton **Exécuter les tests** du concepteur (+ **Cas de test** prérempli dans « Fichiers annexes ») |
+| CI | `dotnet test` : chaque `tests/*.yml` de `definitions/` devient un test MSTest (`TestsMetierTests.Cas_metier`) |
+
+Le validateur signale aussi, en continu, les incohérences d'un cas avec la définition
+(mock ou étape de scénario inexistants, étape http sans mock).
+
+## Déployer une définition
+
+Chaque déploiement dont le contenu change crée une **version immuable** (empreinte SHA-256).
+Les instances en cours restent sur leur version; les nouvelles utilisent la version courante.
+
+| Moyen | Comment |
+|-------|---------|
+| Concepteur | onglet **Concepteur** → *Déployer* (validation serveur en continu) |
+| Fichier | page **Processus** → *Déployer un fichier* (`.zip` du dossier, ou `.yml` seul) |
+| API | `POST /api/definitions` `{ yaml, fichiers: { "chemin": "contenu" }, commentaire }` ou `POST /api/definitions/zip` (multipart `fichier`) |
+| Dossier | `Oim:DossierDefinitions` : chaque sous-dossier est déployé au démarrage |
+
+`POST /api/definitions/valider` retourne les diagnostics sans rien enregistrer (idéal en CI).
+
+## API
+
+**Applications clientes**
+
+| | |
+|---|---|
+| `POST /api/processus/{id}/instances?instanceId=&version=&attendre=` | démarre (corps = entrées). `instanceId` rend l'appel idempotent : 409 si une instance active porte déjà cet id. `attendre` : voir ci-dessous |
+| `GET /api/instances/{id}/reponse?attendre=` | reprend l'attente d'une réponse synchrone |
+| `GET /api/instances/{id}/statut` | `statut`, `statutMetier`, `message`, `evenementAttendu`, `sortie` |
+| `POST /api/instances/{id}/evenements/{nom}` | envoie un événement (corps JSON = `evenement`) |
+
+### Réponse synchrone à l'appelant
+
+Avec `?attendre=30s`, le démarrage reste ouvert jusqu'à ce que le processus ait quelque chose à répondre :
 
 ```yaml
-output:
-  rendezVousId: "$.data.rendezVous.id"
-  courrielClient: "$.data.rendezVous.courriel"
+  - id: accuser
+    type: reponse
+    statutHttp: 201
+    corps:
+      numero: "{{ etapes.valider.sortie.numero }}"
+      statut: "Demande reçue, en attente d'approbation"
+    suivant: approbation        # le processus continue après avoir répondu
 ```
 
-### Navigation conditionnelle
+| Situation | Réponse HTTP |
+|-----------|--------------|
+| une étape `reponse` s'exécute | son `statutHttp` et son `corps`, tels quels |
+| le processus se termine sans étape `reponse` | `200` : `statutMetier`, `message`, `sortie` |
+| le processus échoue ou est interrompu | `500` ProblemDetails |
+| délai dépassé | `202` + `suivi` : `GET /api/instances/{id}/reponse?attendre=30s` |
 
-```yaml
-branches:
-  - condition: "{{ rendezVousId }}"   # truthy si non-vide, non-false, non-null
-    aller: notifierClient
-  - condition: "true"
-    aller: aucunRendezVous
+Les en-têtes `X-Oim-Instance` et `Location` donnent toujours l'instance. L'attente est plafonnée par
+`Oim:AttenteSynchroneMax` (2 min). La réactivité dépend de `Oim:ScrutationMax` (500 ms).
+
+**Pilotage** : `GET /api/tableau-de-bord`, `GET /api/instances?statut=&processus=&recherche=&attente=&page=`,
+`GET /api/instances/{id}`, `GET /api/instances/{id}/historique`,
+`POST /api/instances/{id}/{terminer|suspendre|reprendre|relancer|redemarrer}`, `DELETE /api/instances/{id}` (purge),
+`GET|PUT /api/definitions/...`, `GET /api/catalogue`. OpenAPI : `/openapi/v1.json` (développement).
+
+## Interface
+
+- **Tableau de bord** : compteurs (en cours, en attente d'un événement, suspendues, 24 h),
+  instances par processus et statut, attentes avec échéance, échecs récents avec *Relancer*.
+- **Instances** : recherche (id, statut métier, valeur d'entrée), filtres, pagination.
+  Détail : statut métier et message, **graphe du parcours** (étapes visitées, étape courante,
+  chemin emprunté), données, historique DurableTask; actions : envoyer un événement,
+  suspendre, reprendre, relancer, interrompre, redémarrer, supprimer.
+- **Processus** : versions, YAML, fichiers, graphe, démarrage par un formulaire généré depuis `entrees`.
+- **Concepteur** : palette glisser-déposer, liaisons à la souris (suivant, conditions, sinon,
+  erreur, délai expiré), panneau de propriétés, YAML synchronisé, gabarits annexes,
+  validation serveur en continu et déploiement.
+
+## Configuration (`Oim`)
+
+| Clé | Défaut | |
+|-----|--------|--|
+| `ConnectionStrings:Oim` / `Oim:ConnexionSql` | | base partagée : schémas `dt` et `oim` |
+| `TaskHub` | `oim` | isole plusieurs applications dans la même base |
+| `SchemaDurableTask` | `dt` | schéma des tables DurableTask |
+| `TaskHubParApplication` | `true` | task hub déterminé par l'application (et non l'utilisateur SQL) : IIS, développeurs et outils voient les mêmes instances |
+| `CreerBaseSiAbsente` | `true` (dev) | |
+| `DossierDefinitions` | | déploiement au démarrage |
+| `AttenteSynchroneMax` | `00:02:00` | plafond de `?attendre=` |
+| `ScrutationMax` | `00:00:00.5` | intervalle max de scrutation du worker (DurableTask : 3 s) |
+| `MaxActivitesConcurrentes`, `MaxOrchestrationsActives` | | par nœud |
+| `Courriel:Hote/Port/Ssl/Utilisateur/MotDePasse/De` | | SMTP |
+| `Courriel:DossierDepot` | | écrit des `.eml` au lieu d'envoyer |
+| `Courriel:RedirigerVers` | | redirige tous les courriels (environnements de test) |
+| `Tests:AuDeploiement` | `Bloquant` | tests métier au déploiement : `Bloquant`, `Avertissement`, `Desactive` |
+| `Securite:Active` | `true` | authentification Windows (Negotiate) |
+| `Securite:Groupes` | `[]` | groupes AD autorisés (vide = tout utilisateur authentifié) |
+
+## Production (IIS)
+
+```powershell
+cd sources/OIM.Frontend; npm ci; npm run build     # → sources/OIM.Api/wwwroot
+cd ../OIM.Api; dotnet publish -c Release -o ./publish
 ```
 
-**Règles de vérité** : toute valeur non-vide, non `false`, non `0`, non `null`, non `non` est considérée vraie.
+Un seul site IIS (API + interface). Activer l'authentification Windows sur le site.
+Le compte du pool d'applications doit pouvoir créer le schéma au premier démarrage
+(ou exécuter une fois avec un compte `db_owner`).
 
-### Connecteurs disponibles
+### Plusieurs serveurs sur la même base
 
-| Type | Description |
-|------|-------------|
-| `http` | Appel HTTP via `YamlHttpClient` (config YAML déclarative) |
-| `condition` | Évalue une expression Handlebars pour le branchement |
-| `mock` | Retourne une réponse préconfigurée du catalogue de mocks |
-| `hook` | Pause le workflow en attente d'un callback externe |
+Chaque nœud exécute un worker; DurableTask répartit orchestrations et activités par verrous
+SQL (`LockedBy`/`LockExpiration`, lecture `READPAST`) : un épisode ou une activité n'est traité
+que par un nœud à la fois. Événements, démarrages synchrones (`?attendre=`) et tableau de bord
+fonctionnent quel que soit le nœud appelé. Le démarrage d'un même `instanceId` est atomique (409).
+Au démarrage simultané, la création du schéma `oim` et le déploiement du dossier de définitions
+sont sérialisés par `sp_getapplock`.
 
-### Reprise sur erreur
+Validé avec 2 nœuds sur une base neuve, démarrés au même instant : un seul déploiement v1,
+40 instances réparties sur les deux nœuds, 40 courriels, aucun doublon.
 
-```
-Tâche en erreur → état EnErreur
-  ↓
-UI affiche l'erreur + données d'entrée
-  ↓
-Utilisateur corrige les données (PATCH /api/instances/{id}/taches)
-  ↓
-POST /api/instances/{id}/reprendre-tache { nomTache, donneesEntreeCorrigees }
-  ↓
-Moteur reprend depuis la tâche corrigée
-```
+**Livraison « au moins une fois »** : si un nœud tombe après avoir exécuté une activité
+(appel HTTP, courriel) mais avant d'en enregistrer le résultat, l'activité est réexécutée par
+un autre nœud à l'expiration du verrou. Pour que le service appelé puisse ignorer ce doublon,
+OIM transmet une clé stable par exécution d'étape (identique entre les reprises) :
+en-tête `Idempotency-Key` sur les appels HTTP, `X-OIM-Cle` sur les courriels.
 
----
+## Tests
 
-## 9. API REST
-
-Toutes les routes sont protégées par **JWT Bearer** sauf mention contraire.
-
-### Définitions
-
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| `GET` | `/api/definitions` | Lister les définitions (filtre `?equipe=`) |
-| `GET` | `/api/definitions/{id}` | Détail d'une définition |
-| `GET` | `/api/definitions/{id}/yaml` | Contenu YAML brut |
-| `GET` | `/api/definitions/{id}/versions` | Historique des versions |
-| `POST` | `/api/definitions/deployer` | Déployer une nouvelle définition |
-
-**Body de déploiement** :
-```json
-{
-  "nom": "MonWorkflow",
-  "description": "Description optionnelle",
-  "equipe": "Equipe-A",
-  "contenuYaml": "nom: MonWorkflow\n..."
-}
+```powershell
+dotnet test   # unitaires + intégration (LocalDB « OIM », base OIM_Tests)
 ```
 
-### Instances
-
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| `GET` | `/api/instances` | Lister les instances (filtre `?etat=`, `?definitionId=`) |
-| `GET` | `/api/instances/{id}` | Détail avec tâches |
-| `GET` | `/api/instances/erreurs` | Instances en erreur |
-| `POST` | `/api/instances/demarrer` | Démarrer un workflow |
-| `POST` | `/api/instances/{id}/reprendre` | Reprendre (pause/erreur) |
-| `POST` | `/api/instances/{id}/reprendre-tache` | Reprendre une tâche spécifique |
-| `POST` | `/api/instances/{id}/pauser` | Mettre en pause |
-| `POST` | `/api/instances/{id}/annuler` | Annuler |
-| `PATCH` | `/api/instances/{id}/taches` | Corriger des données d'entrée en lot |
-| `POST` | `/api/instances/{id}/hook/{nomTache}` | Callback externe (AllowAnonymous) |
-
-### Mocks
-
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| `POST` | `/api/mocks` | Ajouter un mock |
-| `POST` | `/api/mocks/batch` | Ajouter des mocks en lot |
-
-### Authentification
-
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| `GET` | `/api/auth/token` | Token JWT via NTLM (production) |
-| `GET` | `/api/auth/dev-token` | Token JWT sans NTLM (développement uniquement) |
-
----
-
-## 10. Frontend Vue.js
-
-### Pages
-
-| Route | Page | Description |
-|-------|------|-------------|
-| `/` | `TableauDeBord.vue` | Statistiques et activité récente |
-| `/definitions` | `Definitions.vue` | Liste des définitions (DataTable) |
-| `/definitions/:id` | `DefinitionDetail.vue` | YAML, versions, démarrage |
-| `/instances` | `Instances.vue` | Liste des instances (DataTable + filtre état) |
-| `/instances/:id` | `InstanceDetail.vue` | Tâches, données entrée/sortie, correction |
-
-### Stores Pinia
-
-**`auth.js`** — Gestion du token JWT
-- Stocke le token et le nom d'utilisateur dans `localStorage`
-- En développement : appelle `/api/auth/dev-token`
-- En production : appelle `/api/auth/token` via NTLM
-
-**`workflow.js`** — Données métier
-- Définitions, instances, instances en erreur
-- Toutes les actions API (charger, démarrer, reprendre, corriger...)
-- Helper `apiFetch` avec injection automatique du header `Authorization`
-
-### Tableaux dynamiques (DataTables)
-
-Les pages Définitions et Instances utilisent **DataTables 2.x** avec le style UTD :
-
-- `utd.datatables.definirParametresDefaut()` appelé avant chaque initialisation
-- Rendu conditionnel par type (`display` vs `filter`/`sort`) pour la recherche
-- Navigation SPA via event delegation + `router.push()`
-- DataTables CSS/JS chargés **avant** UTD (requis par la doc UTD)
-
-### Composants
-
-**`EtatBadge.vue`** — Pastille colorée pour les états
-- Accepte une valeur numérique ou string
-- Styles CSS globaux (non scopés) pour compatibilité DataTables
-
-### Design system
-
-L'interface utilise les **composants web UTD** (Gouvernement du Québec) :
-- `utd-piv-entete` / `utd-piv-pied-page` — En-tête et pied de page PIV
-- `utd-menu-horizontal` / `utd-menu-horizontal-item` — Menu de navigation
-- `utd-section` — Sections de contenu
-- `utd-champ-form` — Champs de formulaire
-- `utd-btn` — Boutons
-- Classes tableau : `utd-table`, `gris`, `rayee`, `bordureslignes`, etc.
-
----
-
-## 11. Temps réel — SignalR
-
-### Hub
-
-`/hubs/workflow` — JWT requis (passé en `?access_token=` pour WebSocket)
-
-**Groupes** :
-- `instance-{instanceId}` — Mises à jour d'une instance spécifique
-- `correlation-{correlationId}` — Traçabilité bout-en-bout
-- `All` — Événements globaux (tableau de bord)
-
-### Événements serveur → client
-
-| Événement | Portée | Données |
-|-----------|--------|---------|
-| `ChangementEtat` | instance + correlation | `{ instanceId, etat, correlationId, timestamp }` |
-| `ChangementEtatGlobal` | All | idem |
-| `TacheDemarree` | instance + correlation | `{ instanceId, tacheId, nomTache, correlationId }` |
-| `TacheTerminee` | instance + correlation | `{ ..., donneesSortie }` |
-| `TacheEnErreur` | instance + correlation | `{ ..., erreur }` |
-| `TacheEnErreurGlobal` | All | idem |
-| `WorkflowTermine` | instance + correlation | `{ instanceId, correlationId }` |
-| `WorkflowTermineGlobal` | All | idem |
-
-### CorrelationId
-
-Chaque instance a un `CorrelationId` unique propagé :
-- Dans les logs backend (`[CorrelationId={id}]`)
-- Dans le header HTTP sortant `X-Correlation-Id`
-- Dans tous les événements SignalR
-- Permet le filtrage dans les systèmes externes (logs, APM, etc.)
-
----
-
-## 12. Authentification
-
-### Flux de production
-
-```
-Navigateur (NTLM) → GET /api/auth/token → JWT retourné
-→ Stocké dans localStorage
-→ Envoyé en header "Authorization: Bearer {token}" sur chaque requête
-→ Passé en "?access_token={token}" pour SignalR WebSocket
-```
-
-### Flux de développement
-
-```
-GET /api/auth/dev-token → JWT retourné (utilise Environment.UserName)
-```
-
-Le frontend détecte automatiquement l'environnement via `import.meta.env.DEV`.
-
-### Configuration JWT
-
-Dans `appsettings.json` :
-```json
-"Jwt": {
-  "Secret": "CHANGER-EN-PRODUCTION",
-  "Issuer": "OIM",
-  "Audience": "OIM-Frontend",
-  "ExpirationMinutes": 480
-}
-```
-
----
-
-## 13. Définitions YAML
-
-### Structure
-
-```yaml
-# yaml-language-server: $schema=workflow-schema.json
-nom: NomDuWorkflow
-description: Description optionnelle
-equipe: Equipe-A
-
-variables:
-  monId: "{{ input.monId }}"
-
-taches:
-  - id: premiereTache
-    nom: Nom lisible
-    type: http
-    httpClientId: monApi
-    mock: monApiMock
-    parametres:
-      id: "{{ monId }}"
-    output:
-      resultat: "$.data.resultat"
-
-  - id: branchement
-    type: condition
-    parametres:
-      expression: "{{ resultat }}"
-    branches:
-      - condition: "{{ resultat }}"
-        aller: tacheSucces
-      - condition: "true"
-        aller: tacheEchec
-
-  - id: tacheSucces
-    type: http
-    httpClientId: autreApi
-    parametres:
-      data: "{{ resultat }}"
-    suivant: fin
-
-  - id: tacheEchec
-    type: hook
-    hook: true
-
-  - id: fin
-    type: condition
-    parametres:
-      expression: "true"
-```
-
-### Types de tâches
-
-| Type | Description | Paramètres requis |
-|------|-------------|-------------------|
-| `http` | Appel HTTP configuré via YAML | `httpClientId` |
-| `condition` | Évalue une expression pour le branchement | `expression` |
-| `mock` | Réponse fictive du catalogue | *(hérité de `mock:` sur la tâche)* |
-| `hook` | Pause et attend un callback | `hook: true` |
-
-### Validation IDE
-
-Ajouter `# yaml-language-server: $schema=workflow-schema.json` en première ligne pour activer l'autocomplétion et la validation dans VS Code.
-
----
-
-## 14. Système de mocks
-
-Les mocks permettent de tester les workflows sans appels HTTP réels.
-
-### Définition dans le YAML
-
-```yaml
-- id: maTache
-  type: http
-  httpClientId: monApi
-  mock: monMockId        # Si le mock est disponible, il prend priorité sur le HTTP
-  parametres:
-    id: "{{ monId }}"
-```
-
-### Auto-seed en développement
-
-Au démarrage en mode Development, OIM charge automatiquement `seed-mocks.json` :
-
-```json
-[
-  {
-    "id": "monMockId",
-    "condition": null,
-    "reponseJson": "{\"data\":{\"succes\":true,\"id\":\"123\"}}"
-  }
-]
-```
-
-### Ajout via API (runtime)
-
-```bash
-# Un seul mock
-POST /api/mocks
-{ "id": "monMockId", "condition": null, "reponseJson": "{...}" }
-
-# Plusieurs mocks
-POST /api/mocks/batch
-[{ "id": "mock1", ... }, { "id": "mock2", ... }]
-```
-
-> **Note** : Les mocks sont en mémoire et perdus au redémarrage. En développement, ils sont rechargés automatiquement depuis `seed-mocks.json`.
-
----
-
-## 15. Tests
-
-```bash
-cd tests/OIM.Tests
-dotnet test
-```
-
-### Couverture
-
-| Classe testée | Tests |
-|---------------|-------|
-| `YamlParser` | Parsing définition, parsing tâches, calcul hash |
-| `HandlebarsResolver` | Résolution simple, imbriquée, batch, JSONPath |
-| `RegistreConnecteurs` | Enregistrement, résolution, types disponibles |
-| `GestionnaireMock` | Ajout, résolution conditionnelle, valeur par défaut |
-
-### MDAT (Markdown-Driven Tests)
-
-Le projet supporte les tests pilotés par Markdown via la librairie **MDAT** (`mtessdev/mdat`). Les fichiers `tests/**/*.md` sont inclus dans le build de test.
-
----
-
-## 16. CI/CD Azure DevOps
-
-Fichier : `pipelines/azure-pipelines.yml`
-
-### Déclencheurs
-
-- Branches : `main`, `develop`, `release/*`
-
-### Étapes
-
-```
-Build
-  ├─ dotnet restore + build + test
-  ├─ npm ci + npm run build (Vue.js → wwwroot)
-  └─ dotnet publish → artifact
-
-Deploy_SAT    (branche develop)
-Deploy_ACCP   (après SAT)
-Deploy_IT     (après ACCP)
-Deploy_PROD   (branche release/* + après IT)
-```
-
-### Déploiement IIS
-
-Chaque environnement utilise `IISWebAppDeploymentOnMachineGroup` vers les serveurs respectifs (`SAT-OIM`, `ACCP-OIM`, `IT-OIM`, `PROD-OIM`).
-
----
-
-## 17. Configuration
-
-### appsettings.json (API)
-
-```json
-{
-  "ConnectionStrings": {
-    "OimDb": "Server=...;Database=OIM;Trusted_Connection=True;"
-  },
-  "Jwt": {
-    "Secret": "CLE-SECRETE-MINIMUN-32-CARACTERES",
-    "Issuer": "OIM",
-    "Audience": "OIM-Frontend",
-    "ExpirationMinutes": 480
-  },
-  "Cors": {
-    "Origins": ["https://oim.mondomaine.com"]
-  }
-}
-```
-
-### appsettings.Development.json
-
-```json
-{
-  "ConnectionStrings": {
-    "OimDb": "Data Source=oim_dev.db"
-  }
-}
-```
-
-### Variables d'environnement importantes
-
-| Variable | Description |
-|----------|-------------|
-| `ASPNETCORE_ENVIRONMENT` | `Development` ou `Production` |
-
----
-
-## 18. Déploiement IIS
-
-### Prérequis serveur
-
-1. IIS avec le module **ASP.NET Core Hosting Bundle** (.NET 10)
-2. Fonctionnalité Windows **WebSocket Protocol** activée
-3. Authentication Windows activée dans IIS
-
-### web.config (production)
-
-Le `web.config` utilise les variables `%LAUNCHER_PATH%` et `%LAUNCHER_ARGS%` remplacées par Visual Studio en dev et par `dotnet publish` en production.
-
-### Build de production
-
-```bash
-# Build du frontend (inclus dans wwwroot)
-cd sources/OIM.Frontend
-npm run build
-
-# Publication de l'API (inclut wwwroot)
-cd ../OIM.Api
-dotnet publish -c Release -o ./publish
-```
-
-Le dossier `publish/` contient le tout — API + frontend — déployable directement sur IIS.
-
----
-
-## Licence
-
-Usage interne — Gouvernement du Québec.
+Les tests d'intégration exécutent le vrai worker DurableTask sur SQL Server : approbation,
+refus, délai expiré → relance, événement reçu en avance, `siErreur` après reprises, échec,
+sous-processus, suspension/reprise. Ils sont ignorés si LocalDB est indisponible.

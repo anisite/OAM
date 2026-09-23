@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../../../schemas/cas-test.schema.json
+nom: Demande refusée
+entrees: { dossierId: 43, courriel: citoyen@exemple.com }
+
+mocks:
+  valider: { statut: 200, corps: { valide: true, numero: D-43 } }
+
+scenario:
+  - attendre: approbation
+    evenement: { decision: { approuve: false, motif: Pièce manquante } }
+
+attendu:
+  statut: Completed
+  etapeFinale: refuser
+  statutMetier: Demande refusée
+  courriels:
+    - gabarit: gabarits/refus.yml
+      a: [citoyen@exemple.com]

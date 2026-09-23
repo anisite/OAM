@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../../schemas/cas-test.schema.json
+nom: En attente de décision
+description: Sans événement, l'instance reste en attente de la décision (réponse déjà envoyée à l'appelant).
+
+entrees: { dossierId: "46", courriel: citoyen@exemple.com }
+
+mocks:
+  valider: { statut: 200, corps: { valide: true, numero: D-46 } }
+
+attendu:
+  statut: Running
+  etape: approbation
+  attente: decision
+  statutMetier: En attente d'approbation
+  reponse: { statutHttp: 201, corps: { numero: D-46, statut: "Demande reçue, en attente d'approbation" } }

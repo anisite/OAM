@@ -1,0 +1,5 @@
+sujet: "Votre demande {{entrees.dossierId}}"
+corps: |
+  <p>Bonjour,</p>
+  <p>Après analyse, votre demande n'a pas pu être approuvée.</p>
+  {{#if evenement.motif}}<p>Motif : {{evenement.motif}}</p>{{/if}}

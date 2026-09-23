@@ -1,0 +1,6 @@
+sujet: "Votre demande {{entrees.dossierId}} est approuvée"
+corps: |
+  <p>Bonjour,</p>
+  <p>Nous avons le plaisir de vous informer que votre demande a été approuvée.</p>
+  <p>Numéro de confirmation : <strong>{{etapes.valider.sortie.numero}}</strong></p>
+  {{#if evenement.commentaire}}<p>Commentaire : {{evenement.commentaire}}</p>{{/if}}

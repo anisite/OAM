@@ -1,37 +1,9 @@
-## .NET
 bin/
 obj/
-*.user
-*.suo
-*.sln.docstates
 .vs/
-logs/
-*.DotSettings.user
-
-## NuGet
-*.nupkg
-**/packages/*
-!**/packages/build/
-
-## Node/Frontend
+*.user
 node_modules/
-dist/
 sources/OIM.Api/wwwroot/
-
-## IDE
-.idea/
-*.swp
-*.swo
-
-## OS
-Thumbs.db
-Desktop.ini
-.DS_Store
-
-## Build output
-[Dd]ebug/
-[Rr]elease/
+sources/OIM.Api/App_Data/
+sources/OIM.Api/publish/
 TestResults/
-
-#claude
-.claude/settings.local.json

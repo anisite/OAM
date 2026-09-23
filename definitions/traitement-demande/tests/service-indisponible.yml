@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../../../schemas/cas-test.schema.json
+nom: Service de validation indisponible
+description: Les 3 tentatives échouent (retry) ; sans siErreur, l'instance passe en échec.
+
+entrees: { dossierId: 45, courriel: citoyen@exemple.com }
+
+mocks:
+  valider: { statut: 503, corps: { message: Maintenance } }
+
+attendu:
+  statut: Failed
+  erreur: HTTP 503
+  parcours: [valider]
+  courriels: []

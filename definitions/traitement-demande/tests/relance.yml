@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../../../schemas/cas-test.schema.json
+nom: Relance de l'approbateur après le délai
+description: Personne ne répond pendant 5 jours (délai simulé) → relance, puis approbation.
+
+entrees: { dossierId: 44, courriel: citoyen@exemple.com }
+
+mocks:
+  valider: { statut: 200, corps: { valide: true, numero: D-44 } }
+
+scenario:
+  - attendre: approbation
+    delaiExpire: true
+  - attendre: approbation
+    evenement: { decision: { approuve: true } }
+
+attendu:
+  statut: Completed
+  parcours: [valider, accuser, approbation, relance, approbation, confirmer]
+  sorties:
+    approbation: { approuve: true }
+  courriels:
+    - a: [approbateurs@exemple.gouv.qc.ca]
+      sujet: "Rappel : le dossier 44 attend votre décision"
+    - a: [citoyen@exemple.com]

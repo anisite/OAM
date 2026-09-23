@@ -1,153 +1,100 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.Negotiate;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using OIM.Api.Auth;
-using OIM.Api.Features.Auth;
-using OIM.Api.Features.Definitions;
-using OIM.Api.Features.Instances;
-using OIM.Api.Features.Mocks;
-using OIM.Api.Features.Tests;
-using OIM.Api.Hubs;
-using OIM.Domain.Interfaces;
-using OIM.Infrastructure;
-using OIM.Infrastructure.Data;
-using OIM.Workflow.Core;
-using Scalar.AspNetCore;
+using Microsoft.AspNetCore.Diagnostics;
+using OIM.Api;
+using OIM.Moteur.Hebergement;
+using OIM.Moteur.Pilotage;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuration
-var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()!;
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AjouterOim(builder.Configuration);
 
-// Authentification : NTLM (pour /api/auth/token) + JWT Bearer (partout ailleurs)
-builder.Services.AddAuthentication(options =>
+// Les chemins relatifs de la configuration (dossier de définitions, dépôt de courriels)
+// sont résolus depuis la racine de l'application, et non depuis le répertoire courant.
+builder.Services.PostConfigure<OptionsOim>(o =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
+    var racine = builder.Environment.ContentRootPath;
+    if (!string.IsNullOrWhiteSpace(o.DossierDefinitions)) o.DossierDefinitions = Path.GetFullPath(o.DossierDefinitions, racine);
+    if (!string.IsNullOrWhiteSpace(o.Courriel.DossierDepot)) o.Courriel.DossierDepot = Path.GetFullPath(o.Courriel.DossierDepot, racine);
+});
+
+builder.Services.ConfigureHttpJsonOptions(o =>
 {
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings.Issuer,
-        ValidAudience = jwtSettings.Audience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret))
-    };
-
-    // Support SignalR : le token est passé en query string
-    options.Events = new JwtBearerEvents
-    {
-        OnMessageReceived = context =>
-        {
-            var accessToken = context.Request.Query["access_token"];
-            var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
-            {
-                context.Token = accessToken;
-            }
-            return Task.CompletedTask;
-        }
-    };
-})
-.AddNegotiate();
-
-builder.Services.AddAuthorization();
-
-// Infrastructure & Workflow Core
-var connectionString = builder.Configuration.GetConnectionString("OimDb")!;
-var useSqlite = connectionString.Contains(".db", StringComparison.OrdinalIgnoreCase)
-                || connectionString.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase)
-                   && !connectionString.Contains("Server", StringComparison.OrdinalIgnoreCase);
-builder.Services.AddOimInfrastructure(connectionString, useSqlite);
-builder.Services.AddOimWorkflowCore();
-
-// Rechargement des http-clients workflows au démarrage
-builder.Services.AddHostedService<OIM.Api.HttpClientsInitializer>();
-
-// SignalR
-builder.Services.AddSignalR();
-builder.Services.AddSingleton<INotificateurWorkflow, SignalRNotificateur>();
-
-// Minimal API — sérialisation des enums en string
-builder.Services.ConfigureHttpJsonOptions(opts =>
-    opts.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+    o.SerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+});
+builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
-// CORS pour le frontend Vue.js
-builder.Services.AddCors(options =>
+// Sécurité : authentification Windows (Negotiate) et, optionnellement, appartenance à un groupe AD.
+var securite = builder.Configuration.GetSection("Oim:Securite");
+var securiteActive = securite.GetValue("Active", true);
+if (securiteActive)
 {
-    options.AddPolicy("Frontend", policy =>
+    builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
+    builder.Services.AddAuthorization(o => o.AddPolicy(Securite.Politique, p =>
     {
-        policy.WithOrigins(
-                builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:5173"])
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
-});
+        p.RequireAuthenticatedUser();
+        var groupes = securite.GetSection("Groupes").Get<string[]>() ?? [];
+        if (groupes.Length > 0) p.RequireRole(groupes);
+    }));
+}
 
 var app = builder.Build();
 
-// Charger la configuration des clients HTTP
-var configHttp = app.Services.GetRequiredService<OIM.Workflow.Core.Connecteurs.ConfigurationYamlHttp>();
-var httpClientsEnv = Path.Combine(Directory.GetCurrentDirectory(), $"http-clients.{app.Environment.EnvironmentName}.yml");
-var httpClientsBase = Path.Combine(Directory.GetCurrentDirectory(), "http-clients.yml");
-var httpClientsPath = File.Exists(httpClientsEnv) ? httpClientsEnv : httpClientsBase;
-if (File.Exists(httpClientsPath))
+app.UseExceptionHandler(e => e.Run(async contexte =>
 {
-    configHttp.ChargerDepuisYaml(File.ReadAllText(httpClientsPath));
-    app.Logger.LogInformation("Clients HTTP chargés depuis {Path}", httpClientsPath);
-}
-
-// En développement : créer la BD et seeder les mocks automatiquement
-if (app.Environment.IsDevelopment())
-{
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<OimDbContext>();
-    db.Database.EnsureCreated();
-    app.MapOpenApi();
-    app.MapScalarApiReference(options => options.WithTitle("OIM — Orchestrateur d'Actions Métier"));
-
-    // Auto-seed des mocks depuis seed-mocks.json
-    var seedPath = Path.Combine(AppContext.BaseDirectory, "seed-mocks.json");
-    if (!File.Exists(seedPath))
-        seedPath = Path.Combine(Directory.GetCurrentDirectory(), "seed-mocks.json");
-    if (File.Exists(seedPath))
+    var erreur = contexte.Features.Get<IExceptionHandlerFeature>()?.Error;
+    var (statut, titre, details) = erreur switch
     {
-        var gestionnaire = app.Services.GetRequiredService<OIM.Workflow.Core.Engine.GestionnaireMock>();
-        var entries = System.Text.Json.JsonSerializer.Deserialize<List<SeedMockEntry>>(
-            File.ReadAllText(seedPath),
-            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        entries?.ForEach(e => gestionnaire.AjouterMock(e.Id, OIM.Workflow.Core.Engine.GestionnaireMock.Global, e.Condition, e.ReponseJson));
-        app.Logger.LogInformation("Mocks seedés depuis {Path} ({Count} entrées)", seedPath, entries?.Count ?? 0);
-    }
+        ErreurPilotage p => (p.StatutHttp, p.Message, p.Details),
+        BadHttpRequestException b => (400, b.Message, (IReadOnlyList<string>)[]),
+        System.Text.Json.JsonException j => (400, $"JSON invalide : {j.Message}", []),
+        InvalidDataException d => (400, d.Message, []),
+        _ => (500, "Erreur technique.", [])
+    };
+    contexte.Response.StatusCode = statut;
+    await Results.Problem(title: titre, statusCode: statut,
+        extensions: details.Count > 0 ? new Dictionary<string, object?> { ["details"] = details } : null).ExecuteAsync(contexte);
+}));
+
+if (securiteActive)
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
 }
 
-app.UseCors("Frontend");
-app.UseAuthentication();
-app.UseAuthorization();
-
-// Servir les fichiers statiques du frontend (build Vue.js dans wwwroot)
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapAuth();
-app.MapDefinitions();
-app.MapInstances();
-app.MapMocks();
-app.MapTests();
-app.MapHub<WorkflowHub>("/hubs/workflow");
+if (app.Environment.IsDevelopment())
+    app.MapOpenApi();
 
-// Fallback SPA : renvoyer index.html pour les routes Vue.js
+var api = app.MapGroup("/api");
+if (securiteActive) api.RequireAuthorization(Securite.Politique);
+
+// Erreurs fonctionnelles (400/404/409) : réponse ProblemDetails sans journaliser d'erreur technique.
+api.AddEndpointFilter(async (contexte, suivant) =>
+{
+    try
+    {
+        return await suivant(contexte);
+    }
+    catch (ErreurPilotage p)
+    {
+        return Results.Problem(title: p.Message, statusCode: p.StatutHttp,
+            extensions: p.Details.Count > 0 ? new Dictionary<string, object?> { ["details"] = p.Details } : null);
+    }
+    catch (InvalidDataException d)
+    {
+        return Results.Problem(title: d.Message, statusCode: 400);
+    }
+});
+
+api.MapDefinitions();
+api.MapInstances();
+
+// Application Vue (routage côté client)
 app.MapFallbackToFile("index.html");
 
 app.Run();
 
-internal record SeedMockEntry(string Id, string? Condition, string ReponseJson);
+public partial class Program;

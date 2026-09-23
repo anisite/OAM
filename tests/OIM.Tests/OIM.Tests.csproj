@@ -5,29 +5,19 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MSTest" Version="4.*" />
-    <PackageReference Include="MDAT" Version="*" />
-    <PackageReference Include="NSubstitute" Version="5.*" />
+    <PackageReference Include="MSTest" Version="4.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\sources\OIM.Domain\OIM.Domain.csproj" />
-    <ProjectReference Include="..\..\sources\OIM.Infrastructure\OIM.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\sources\OIM.Workflow.Core\OIM.Workflow.Core.csproj" />
+    <ProjectReference Include="..\..\sources\OIM.Moteur\OIM.Moteur.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Tests\**\*.md">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>

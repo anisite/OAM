@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=../../../schemas/cas-test.schema.json
+nom: Demande approuvée
+description: Le dossier est validé, l'appelant reçoit son numéro, puis l'approbateur approuve.
+
+entrees: { dossierId: 42, courriel: citoyen@exemple.com }
+
+mocks:
+  valider: { statut: 200, corps: { valide: true, numero: D-42 } }
+
+scenario:
+  - attendre: approbation
+    evenement: { decision: { approuve: true, commentaire: Dossier complet } }
+
+attendu:
+  statut: Completed
+  etapeFinale: confirmer
+  parcours: [valider, accuser, approbation, confirmer]
+  statutMetier: Demande approuvée
+  message: "Confirmation #D-42"
+  reponse:
+    statutHttp: 201
+    corps: { numero: D-42 }
+  courriels:
+    - a: [citoyen@exemple.com]
+      sujet: Votre demande 42 est approuvée

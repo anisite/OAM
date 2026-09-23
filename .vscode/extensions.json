@@ -1,8 +1,0 @@
-{
-  "recommendations": [
-    "ms-dotnettools.csdevkit",
-    "ms-dotnettools.csharp",
-    "Vue.volar",
-    "redhat.vscode-yaml"
-  ]
-}

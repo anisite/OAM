@@ -1,0 +1,16 @@
+# Gabarit YamlHttpClient. Le modèle Handlebars est « donnees » de l'étape : {{id}}.
+# Le mock permet d'exécuter l'exemple sans service réel : retirez-le (ou enabled: false)
+# et ajustez l'URL pour appeler le vrai service.
+http_client:
+  validerDossier:
+    method: GET
+    url: https://services.exemple.gouv.qc.ca/dossiers/{{id}}/validation
+    use_default_credentials: true
+    headers:
+      Accept: application/json
+    mock:
+      enabled: true
+      status_code: 200
+      headers:
+        Content-Type: application/json
+      body: '{ "valide": true, "numero": "D-2026-00042" }'

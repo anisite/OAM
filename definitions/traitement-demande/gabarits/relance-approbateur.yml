@@ -1,0 +1,7 @@
+a: approbateurs@exemple.gouv.qc.ca
+sujet: "Rappel : le dossier {{entrees.dossierId}} attend votre décision"
+corps: |
+  <p>Bonjour,</p>
+  <p>Le dossier <strong>{{entrees.dossierId}}</strong> (validation {{etapes.valider.sortie.numero}})
+  attend toujours votre approbation.</p>
+  <p>Merci de transmettre votre décision.</p>

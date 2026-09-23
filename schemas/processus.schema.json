@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://oim/schemas/processus.schema.json",
+  "title": "Processus OIM",
+  "description": "Définition d'un processus exécuté par OIM (DurableTask). Ajoutez en tête du fichier : # yaml-language-server: $schema=<chemin>/processus.schema.json",
+  "type": "object",
+  "required": ["id", "etapes"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,100}$", "description": "Identifiant (URL : /api/processus/{id}/instances)." },
+    "nom": { "type": "string" },
+    "description": { "type": "string" },
+    "entrees": {
+      "type": "object",
+      "description": "Entrées de l'instance, validées et converties au démarrage.",
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/definitions/typeEntree" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": { "$ref": "#/definitions/typeEntree" },
+              "requis": { "type": "boolean" },
+              "defaut": {},
+              "libelle": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "limites": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transitions": { "type": "integer", "minimum": 1, "description": "Nombre maximal de transitions (garde-fou contre les boucles). Défaut 1000." }
+      }
+    },
+    "etapes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "La première étape est l'étape de départ.",
+      "items": { "$ref": "#/definitions/etape" }
+    }
+  },
+  "definitions": {
+    "typeEntree": { "enum": ["string", "int", "number", "bool", "date", "object", "array"] },
+    "duree": {
+      "type": "string",
+      "description": "TimeSpan (00:00:30, 5.00:00:00), abrégé (30s, 15m, 2h, 5j) ou ISO 8601 (P5D). Peut contenir une expression {{ }}."
+    },
+    "expression": { "type": "string", "description": "Texte pouvant contenir des expressions {{ … }} (entrees, etapes.<id>.sortie, evenement, variables, erreur, instance, maintenant)." },
+    "suivant": {
+      "description": "Étape suivante, ou liste de branches { si, aller } terminée par { sinon }.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["si", "aller"],
+                "additionalProperties": false,
+                "properties": { "si": { "$ref": "#/definitions/expression" }, "aller": { "type": "string" } }
+              },
+              {
+                "type": "object",
+                "required": ["sinon"],
+                "additionalProperties": false,
+                "properties": { "sinon": { "type": "string" } }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Reprises automatiques (RetryOptions DurableTask).",
+      "properties": {
+        "tentatives": { "type": "integer", "minimum": 1, "description": "Nombre total de tentatives." },
+        "delai": { "$ref": "#/definitions/duree" },
+        "backoff": { "type": "number", "minimum": 1 },
+        "delaiMax": { "$ref": "#/definitions/duree" }
+      }
+    },
+    "etape": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "enum": ["http", "attendreEvenement", "courriel", "delai", "decision", "definir", "sousProcessus", "reponse"] },
+        "description": { "type": "string" },
+        "statut": { "$ref": "#/definitions/expression", "description": "Statut métier affiché pendant l'étape (statut personnalisé)." },
+        "message": { "$ref": "#/definitions/expression", "description": "Message retourné au client, évalué après l'étape." },
+        "suivant": { "$ref": "#/definitions/suivant" },
+        "fin": { "type": "boolean" },
+        "siErreur": { "type": "string", "description": "Étape à exécuter si celle-ci échoue (après les reprises)." },
+        "retry": { "$ref": "#/definitions/retry" },
+        "requete": { "type": "string", "description": "[http] Gabarit YamlHttpClient du paquet : fichier.yml ou fichier.yml#cle." },
+        "donnees": { "description": "[http, courriel] Données transmises au gabarit." },
+        "evenement": { "type": "string", "description": "[attendreEvenement] Nom de l'événement attendu." },
+        "delai": { "$ref": "#/definitions/duree", "description": "[attendreEvenement] Délai d'attente." },
+        "siDelaiExpire": { "type": "string", "description": "[attendreEvenement] Étape si le délai expire." },
+        "gabarit": { "type": "string", "description": "[courriel] Nom du gabarit (gabarits/<nom>.yml)." },
+        "a": { "$ref": "#/definitions/expression" },
+        "cc": { "$ref": "#/definitions/expression" },
+        "cci": { "$ref": "#/definitions/expression" },
+        "duree": { "$ref": "#/definitions/duree", "description": "[delai] Durée de la pause." },
+        "jusqua": { "$ref": "#/definitions/expression", "description": "[delai] Date de fin de la pause." },
+        "variables": { "type": "object", "description": "[definir] Valeurs conservées dans variables.<nom>." },
+        "processus": { "type": "string", "description": "[sousProcessus] Id du processus enfant." },
+        "version": { "type": ["integer", "string"], "description": "[sousProcessus] Version (défaut : courante)." },
+        "entrees": { "type": "object", "description": "[sousProcessus] Entrées du processus enfant." },
+        "statutHttp": { "type": ["integer", "string"], "description": "[reponse] Statut HTTP retourné à l'appelant synchrone (défaut 200)." },
+        "corps": { "description": "[reponse] Corps JSON retourné à l'appelant synchrone." }
+      }
+    }
+  }
+}

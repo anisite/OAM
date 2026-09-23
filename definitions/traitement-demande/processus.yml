@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=../../schemas/processus.schema.json
+id: traitement-demande
+nom: Traitement d'une demande
+entrees:
+  dossierId: { type: int, requis: true }
+  courriel:  { type: string, requis: true }
+
+etapes:
+  - id: valider
+    type: http                      # activité HttpActivity (YamlHttpClient)
+    requete: valider-dossier.yml    # gabarit YamlHttpClient
+    donnees: { id: "{{ entrees.dossierId }}" }
+    retry: { tentatives: 3, delai: 00:00:30, backoff: 2 }
+    statut: "Validation du dossier"
+    suivant: accuser
+
+  - id: accuser
+    type: reponse                   # réponse HTTP à l'appelant synchrone (?attendre=30s)
+    statutHttp: 201
+    corps:
+      numero: "{{ etapes.valider.sortie.numero }}"
+      statut: "Demande reçue, en attente d'approbation"
+    suivant: approbation            # le processus continue après avoir répondu
+
+  - id: approbation
+    type: attendreEvenement         # WaitForExternalEvent + CreateTimer
+    evenement: decision
+    delai: 5.00:00:00
+    statut: "En attente d'approbation"
+    siDelaiExpire: relance
+    suivant:
+      - si: "{{ evenement.approuve == true }}"
+        aller: confirmer
+      - sinon: refuser
+
+  - id: relance
+    type: courriel
+    gabarit: relance-approbateur
+    suivant: approbation
+
+  - id: confirmer
+    type: courriel
+    gabarit: confirmation
+    a: "{{ entrees.courriel }}"
+    statut: "Demande approuvée"
+    message: "Confirmation #{{ etapes.valider.sortie.numero }}"   # retourné au client
+    fin: true
+
+  - id: refuser
+    type: courriel
+    gabarit: refus
+    a: "{{ entrees.courriel }}"
+    statut: "Demande refusée"
+    fin: true

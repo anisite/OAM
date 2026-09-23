@@ -4,23 +4,17 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OIM.Api</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.*" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="10.0.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.*">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Scalar.AspNetCore" Version="2.13.17" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\OIM.Domain\OIM.Domain.csproj" />
-    <ProjectReference Include="..\OIM.Infrastructure\OIM.Infrastructure.csproj" />
-    <ProjectReference Include="..\OIM.Workflow.Core\OIM.Workflow.Core.csproj" />
+    <ProjectReference Include="..\OIM.Moteur\OIM.Moteur.csproj" />
   </ItemGroup>
+
 
 </Project>

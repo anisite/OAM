@@ -82,10 +82,12 @@ stages:
               publishTestResults: true
 
           # Interface Vue (vérification de types + build) → sources/OIM.Api/wwwroot : servie par le même site IIS.
+          # « call » : sur un agent Windows, npm est un .cmd; sans call, le script s'arrête après la première commande.
           - script: |
               cd sources/OIM.Frontend
-              npm ci
-              npm run build
+              call npm ci || exit /b 1
+              call npm run build || exit /b 1
+              if not exist ..\OIM.Api\wwwroot\index.html (echo ##vso[task.logissue type=error]wwwroot\index.html absent & exit /b 1)
             displayName: 'Build de l’interface'
 
           - task: DotNetCoreCLI@2

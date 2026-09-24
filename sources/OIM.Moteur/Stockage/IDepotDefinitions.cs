@@ -17,6 +17,7 @@ public sealed record VersionDefinition(
 
 public sealed record ResumeDefinition(
     string Id,
+    string Equipe,
     string? Nom,
     string? Description,
     int VersionCourante,
@@ -37,13 +38,15 @@ public interface IDepotDefinitions
 {
     Task InitialiserAsync(CancellationToken ct = default);
 
-    Task<ResultatDeploiement> DeployerAsync(DefinitionProcessus definition, PaquetDefinition paquet,
+    /// <summary>Déploie dans l'équipe : l'id enregistré est qualifié (« equipe.processus »).</summary>
+    Task<ResultatDeploiement> DeployerAsync(string equipe, DefinitionProcessus definition, PaquetDefinition paquet,
         string? deployePar, string? commentaire, CancellationToken ct = default);
 
     /// <summary>Version précise, ou version courante si <paramref name="version"/> est null.</summary>
     Task<VersionDefinition?> ObtenirAsync(string id, int? version = null, CancellationToken ct = default);
 
-    Task<IReadOnlyList<ResumeDefinition>> ListerAsync(CancellationToken ct = default);
+    /// <param name="equipes">Équipes à inclure, ou null pour toutes.</param>
+    Task<IReadOnlyList<ResumeDefinition>> ListerAsync(IReadOnlyCollection<string>? equipes, CancellationToken ct = default);
 
     Task<IReadOnlyList<ResumeVersion>> VersionsAsync(string id, CancellationToken ct = default);
 

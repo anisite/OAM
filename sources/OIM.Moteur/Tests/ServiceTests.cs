@@ -42,7 +42,8 @@ public sealed class ServiceTests(
 {
     private const int Parallelisme = 4;
 
-    public async Task<RapportTests> ExecuterAsync(PaquetDefinition paquet, string? filtre = null, bool conserver = false,
+    /// <param name="equipe">Équipe du paquet : préfixe du brouillon et des instances de test.</param>
+    public async Task<RapportTests> ExecuterAsync(string equipe, PaquetDefinition paquet, string? filtre = null, bool conserver = false,
         CancellationToken ct = default)
     {
         var validation = ValidateurDefinition.Valider(paquet);
@@ -57,7 +58,7 @@ public sealed class ServiceTests(
             .ToList();
         if (cas.Count == 0) return new RapportTests(id, [], []);
 
-        var brouillon = $"{IDepotDefinitions.PrefixeBrouillon}{(id.Length > 60 ? id[..60] : id)}~{Guid.NewGuid().ToString("N")[..8]}";
+        var brouillon = $"{IDepotDefinitions.PrefixeBrouillon}{IdsEquipe.Qualifier(equipe, id.Length > 60 ? id[..60] : id)}~{Guid.NewGuid().ToString("N")[..8]}";
         await depot.EnregistrerBrouillonAsync(brouillon, paquet, ct);
         try
         {
@@ -65,7 +66,7 @@ public sealed class ServiceTests(
             var resultats = await Task.WhenAll(cas.Select(async c =>
             {
                 await limite.WaitAsync(ct);
-                try { return await ExecuterCasAsync(brouillon, c.Chemin, c.Contenu, conserver, ct); }
+                try { return await ExecuterCasAsync(equipe, brouillon, c.Chemin, c.Contenu, conserver, ct); }
                 finally { limite.Release(); }
             }));
 
@@ -79,7 +80,8 @@ public sealed class ServiceTests(
         }
     }
 
-    private async Task<ResultatCas> ExecuterCasAsync(string brouillon, string chemin, string contenu, bool conserver, CancellationToken ct)
+    private async Task<ResultatCas> ExecuterCasAsync(string equipe, string brouillon, string chemin, string contenu, bool conserver,
+        CancellationToken ct)
     {
         CasTest cas;
         try
@@ -92,7 +94,7 @@ public sealed class ServiceTests(
         }
 
         var chrono = Stopwatch.StartNew();
-        var instanceId = $"~test-{Guid.NewGuid():N}";
+        var instanceId = IdsEquipe.Qualifier(equipe, $"~test-{Guid.NewGuid():N}");
         var ecarts = new List<string>();
         JsonObject? obtenu = null;
 
@@ -210,7 +212,7 @@ public sealed class ServiceTests(
         };
 
         // Courriels « envoyés » (simulés), dans l'ordre, reconstitués depuis l'historique DurableTask.
-        var historique = await Reessayer(() => suivi.HistoriqueAsync(instanceId, ct, complet: true));
+        var historique = await Reessayer(() => suivi.HistoriqueAsync(Habilitations.Systeme, instanceId, ct, complet: true));
         var courriels = historique.Where(h => h.Type == "TaskScheduled" && h.Nom == NomsActivites.Courriel).Select(h => h.TacheId).ToHashSet();
         o["courriels"] = new JsonArray(historique
             .Where(h => h.Type == "TaskCompleted" && courriels.Contains(h.TacheId))

@@ -1,0 +1,18 @@
+# Palier à un nœud (SAT, ACCP) : déploiement direct sur les serveurs de l'environnement étiquetés « OIM ».
+
+parameters:
+  - name: environnement
+    type: string
+
+jobs:
+  - deployment: Deployer
+    displayName: 'Déployer OIM (${{ parameters.environnement }})'
+    environment:
+      name: '${{ parameters.environnement }}'
+      resourceType: VirtualMachine
+      tags: 'OIM'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - template: deployer-oim.yml

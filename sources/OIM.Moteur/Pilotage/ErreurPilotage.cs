@@ -7,6 +7,7 @@ public sealed class ErreurPilotage(int statutHttp, string message, IReadOnlyList
     public IReadOnlyList<string> Details { get; } = details ?? [];
 
     public static ErreurPilotage Introuvable(string message) => new(404, message);
+    public static ErreurPilotage Interdit(string message) => new(403, message);
     public static ErreurPilotage Conflit(string message) => new(409, message);
     public static ErreurPilotage Invalide(string message, IReadOnlyList<string>? details = null) => new(400, message, details);
 }

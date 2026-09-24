@@ -24,11 +24,11 @@
       <section class="carte" aria-labelledby="titreParProcessus">
         <div class="carte-entete">
           <h2 id="titreParProcessus">Instances par processus</h2>
-          <router-link to="/processus" class="utd-btn tertiaire comme-lien compact">Tous les processus</router-link>
+          <router-link :to="lien('/processus')" class="utd-btn tertiaire comme-lien compact">Tous les processus</router-link>
         </div>
         <p v-if="parProcessus.length === 0" class="zone-vide">
           Aucune instance pour l’instant. Démarrez un processus depuis la page
-          <router-link to="/processus">Processus</router-link>.
+          <router-link :to="lien('/processus')">Processus</router-link>.
         </p>
         <table v-else class="utd-table bordures-lignes hover-lignes compact">
           <caption class="utd-sr-only">Nombre d’instances par processus et par statut</caption>
@@ -44,10 +44,10 @@
           <tbody>
             <tr v-for="p in parProcessus" :key="p.processus">
               <th scope="row">
-                <router-link :to="`/processus/${encodeURIComponent(p.processus)}`" class="texte-mono">{{ p.processus }}</router-link>
+                <router-link :to="lienProcessus(p.processus)" class="texte-mono">{{ idLocal(p.processus) }}</router-link>
               </th>
               <td v-for="s in colonnesStatut" :key="s" class="colonne-nombre">
-                <router-link v-if="p.statuts[s]" :to="{ path: '/instances', query: { processus: p.processus, statut: s } }">
+                <router-link v-if="p.statuts[s]" :to="{ path: lien('/instances'), query: { processus: p.processus, statut: s } }">
                   {{ p.statuts[s] }}
                 </router-link>
                 <span v-else class="texte-attenue">·</span>
@@ -62,7 +62,7 @@
       <section class="carte" aria-labelledby="titreAttentes">
         <div class="carte-entete">
           <h2 id="titreAttentes">En attente d’un événement</h2>
-          <router-link :to="{ path: '/instances', query: { attente: 'true' } }" class="utd-btn tertiaire comme-lien compact">
+          <router-link :to="{ path: lien('/instances'), query: { attente: 'true' } }" class="utd-btn tertiaire comme-lien compact">
             Voir tout
           </router-link>
         </div>
@@ -71,11 +71,11 @@
           <li v-for="i in stats.attentesProches" :key="i.instanceId">
             <router-link :to="lienInstance(i.instanceId)" class="liste-instances-lien">
               <span class="liste-instances-titre">
-                <span class="texte-mono">{{ i.instanceId }}</span>
+                <span class="texte-mono">{{ idLocal(i.instanceId) }}</span>
                 <span class="utd-etiquette">{{ i.evenementAttendu }}</span>
               </span>
               <span class="texte-attenue">
-                {{ i.processus }} · {{ i.statutMetier ?? i.etape }}
+                {{ idLocal(i.processus) }} · {{ i.statutMetier ?? i.etape }}
                 <template v-if="i.echeance"> · échéance {{ relatif(i.echeance) }}</template>
               </span>
             </router-link>
@@ -87,7 +87,7 @@
       <section class="carte carte-large" aria-labelledby="titreEchecs">
         <div class="carte-entete">
           <h2 id="titreEchecs">Échecs récents</h2>
-          <router-link :to="{ path: '/instances', query: { statut: 'Failed' } }" class="utd-btn tertiaire comme-lien compact">
+          <router-link :to="{ path: lien('/instances'), query: { statut: 'Failed' } }" class="utd-btn tertiaire comme-lien compact">
             Voir tout
           </router-link>
         </div>
@@ -105,13 +105,13 @@
           </thead>
           <tbody>
             <tr v-for="i in stats.echecsRecents" :key="i.instanceId">
-              <td><router-link :to="lienInstance(i.instanceId)" class="texte-mono">{{ i.instanceId }}</router-link></td>
-              <td class="texte-mono">{{ i.processus }} v{{ i.version }}</td>
+              <td><router-link :to="lienInstance(i.instanceId)" class="texte-mono">{{ idLocal(i.instanceId) }}</router-link></td>
+              <td class="texte-mono">{{ idLocal(i.processus) }} v{{ i.version }}</td>
               <td class="cellule-erreur">{{ i.erreur ?? '—' }}</td>
               <td>{{ relatif(i.miseAJour) }}</td>
               <td class="cellule-actions">
                 <button type="button" class="utd-btn secondaire compact" @click="relancer(i.instanceId)">
-                  Relancer<span class="utd-sr-only"> {{ i.instanceId }}</span>
+                  Relancer<span class="utd-sr-only"> {{ idLocal(i.instanceId) }}</span>
                 </button>
               </td>
             </tr>
@@ -125,6 +125,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { api } from '@/lib/api'
+import { idLocal, useEquipe } from '@/lib/equipe'
 import { relatif } from '@/lib/format'
 import type { Statistiques } from '@/lib/types'
 import { useRafraichissement } from '@/lib/rafraichissement'
@@ -132,12 +133,13 @@ import PastilleStatut from '@/components/PastilleStatut.vue'
 import BarreRafraichissement from '@/components/BarreRafraichissement.vue'
 import MessagesHelpers from '@/helpers/messages'
 
+const { equipe, lien, lienProcessus, lienInstance } = useEquipe()
 const stats = ref<Statistiques | null>(null)
 const erreur = ref('')
 
 const { automatique, chargement, derniereMaj, actualiser } = useRafraichissement(async () => {
   try {
-    stats.value = await api.tableauDeBord()
+    stats.value = await api.tableauDeBord(equipe.value)
     erreur.value = ''
   } catch (e) {
     erreur.value = (e as Error).message
@@ -147,12 +149,12 @@ const { automatique, chargement, derniereMaj, actualiser } = useRafraichissement
 const n = (s: string): number => stats.value?.parStatut[s] ?? 0
 
 const tuiles = computed(() => [
-  { libelle: 'En cours', valeur: n('Running') + n('Pending'), lien: { path: '/instances', query: { statut: 'Running,Pending' } }, classe: 'bleu' },
-  { libelle: 'En attente d’un événement', valeur: stats.value?.enAttenteEvenement ?? 0, lien: { path: '/instances', query: { attente: 'true' } }, classe: 'ocre' },
-  { libelle: 'Suspendues', valeur: n('Suspended'), lien: { path: '/instances', query: { statut: 'Suspended' } }, classe: 'jaune' },
-  { libelle: 'Démarrées (24 h)', valeur: stats.value?.demarrees24h ?? 0, lien: { path: '/instances' }, classe: '' },
-  { libelle: 'Terminées (24 h)', valeur: stats.value?.terminees24h ?? 0, lien: { path: '/instances', query: { statut: 'Completed' } }, classe: 'vert' },
-  { libelle: 'En échec (24 h)', valeur: stats.value?.echouees24h ?? 0, lien: { path: '/instances', query: { statut: 'Failed' } }, classe: 'rouge' }
+  { libelle: 'En cours', valeur: n('Running') + n('Pending'), lien: { path: lien('/instances'), query: { statut: 'Running,Pending' } }, classe: 'bleu' },
+  { libelle: 'En attente d’un événement', valeur: stats.value?.enAttenteEvenement ?? 0, lien: { path: lien('/instances'), query: { attente: 'true' } }, classe: 'ocre' },
+  { libelle: 'Suspendues', valeur: n('Suspended'), lien: { path: lien('/instances'), query: { statut: 'Suspended' } }, classe: 'jaune' },
+  { libelle: 'Démarrées (24 h)', valeur: stats.value?.demarrees24h ?? 0, lien: { path: lien('/instances') }, classe: '' },
+  { libelle: 'Terminées (24 h)', valeur: stats.value?.terminees24h ?? 0, lien: { path: lien('/instances'), query: { statut: 'Completed' } }, classe: 'vert' },
+  { libelle: 'En échec (24 h)', valeur: stats.value?.echouees24h ?? 0, lien: { path: lien('/instances'), query: { statut: 'Failed' } }, classe: 'rouge' }
 ])
 
 const colonnesStatut = ['Running', 'Suspended', 'Completed', 'Failed', 'Terminated']
@@ -169,12 +171,10 @@ const parProcessus = computed(() => {
   return [...map.values()].sort((a, b) => a.processus.localeCompare(b.processus))
 })
 
-const lienInstance = (id: string): string => `/instances/${encodeURIComponent(id)}`
-
 const relancer = async (id: string): Promise<void> => {
   try {
     await api.commande(id, 'relancer')
-    MessagesHelpers.notifierSucces(`L’instance « ${id} » a été relancée à partir de l’étape en échec.`)
+    MessagesHelpers.notifierSucces(`L’instance « ${idLocal(id)} » a été relancée à partir de l’étape en échec.`)
     await actualiser()
   } catch (e) {
     MessagesHelpers.notifierErreur((e as Error).message)

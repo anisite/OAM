@@ -1,0 +1,49 @@
+# Palier à deux nœuds (IT, PROD), même séquence que la release classique de GED :
+#   B on / A off → déployer A → A on / B off → déployer B → B on
+# Les nœuds sont les ressources de l'environnement étiquetées « OIM » + « 1 » (A) ou « 2 » (B).
+
+parameters:
+  - name: environnement
+    type: string
+
+jobs:
+  - deployment: B_on_A_off_B
+    displayName: 'B on - A off : B en ligne'
+    environment: { name: '${{ parameters.environnement }}', resourceType: VirtualMachine, tags: 'OIM,2' }
+    strategy: { runOnce: { deploy: { steps: [ { download: none }, { template: Deployer/Deployer.RemettreOnline.yml } ] } } }
+
+  - deployment: B_on_A_off_A
+    displayName: 'B on - A off : drain de A'
+    dependsOn: B_on_A_off_B
+    environment: { name: '${{ parameters.environnement }}', resourceType: VirtualMachine, tags: 'OIM,1' }
+    strategy: { runOnce: { deploy: { steps: [ { download: none }, { template: Deployer/Deployer.Drain.yml } ] } } }
+
+  - deployment: A_Release
+    displayName: 'A : déploiement'
+    dependsOn: B_on_A_off_A
+    environment: { name: '${{ parameters.environnement }}', resourceType: VirtualMachine, tags: 'OIM,1' }
+    strategy: { runOnce: { deploy: { steps: [ { template: deployer-oim.yml } ] } } }
+
+  - deployment: A_on_B_off_A
+    displayName: 'A on - B off : A en ligne'
+    dependsOn: A_Release
+    environment: { name: '${{ parameters.environnement }}', resourceType: VirtualMachine, tags: 'OIM,1' }
+    strategy: { runOnce: { deploy: { steps: [ { download: none }, { template: Deployer/Deployer.RemettreOnline.yml } ] } } }
+
+  - deployment: A_on_B_off_B
+    displayName: 'A on - B off : drain de B'
+    dependsOn: A_on_B_off_A
+    environment: { name: '${{ parameters.environnement }}', resourceType: VirtualMachine, tags: 'OIM,2' }
+    strategy: { runOnce: { deploy: { steps: [ { download: none }, { template: Deployer/Deployer.Drain.yml } ] } } }
+
+  - deployment: B_Release
+    displayName: 'B : déploiement'
+    dependsOn: A_on_B_off_B
+    environment: { name: '${{ parameters.environnement }}', resourceType: VirtualMachine, tags: 'OIM,2' }
+    strategy: { runOnce: { deploy: { steps: [ { template: deployer-oim.yml } ] } } }
+
+  - deployment: B_on
+    displayName: 'B on'
+    dependsOn: B_Release
+    environment: { name: '${{ parameters.environnement }}', resourceType: VirtualMachine, tags: 'OIM,2' }
+    strategy: { runOnce: { deploy: { steps: [ { download: none }, { template: Deployer/Deployer.RemettreOnline.yml } ] } } }

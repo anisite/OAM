@@ -47,6 +47,8 @@ public static class ExtensionsServices
             sp.GetRequiredService<ILoggerFactory>()));
 
         services.AddSingleton<IDepotDefinitions, DepotDefinitionsSql>();
+        services.AddSingleton<DepotEquipesSql>();
+        services.AddSingleton<ServiceEquipes>();
         services.AddTransient<ChargerDefinitionActivite>();
         services.AddTransient<HttpActivite>();
         services.AddTransient<CourrielActivite>();

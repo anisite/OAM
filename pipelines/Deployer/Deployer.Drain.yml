@@ -1,0 +1,35 @@
+# Équivalent YAML du groupe de tâches « Deployer.Drain » : crée offline.htm dans drain.local pour retirer
+# le serveur de l'équilibreur de charge, puis attend 2 minutes que les requêtes en cours se terminent.
+
+parameters:
+  - name: cheminDrainLocal      # CheminDrainLocal (avec la barre oblique finale)
+    type: string
+    default: 'C:\inetpub\wwwroot\drain.local\'
+  - name: nomFichierOffline     # NomFichierOffline
+    type: string
+    default: 'offline.htm'
+
+steps:
+  - task: PowerShell@2
+    displayName: 'Drain ${{ parameters.cheminDrainLocal }}'
+    inputs:
+      targetType: 'inline'
+      errorActionPreference: 'stop'
+      script: |
+        if (Test-Path "${{ parameters.cheminDrainLocal }}${{ parameters.nomFichierOffline }}")
+        {
+          Write-Host "Fichier « ${{ parameters.cheminDrainLocal }}${{ parameters.nomFichierOffline }} » existe déjà. Drain annulé."
+        }
+        else
+        {
+          New-Item -Path "${{ parameters.cheminDrainLocal }}" -Name "${{ parameters.nomFichierOffline }}" -ItemType "file"
+          Write-Host "Fichier créé ici : « ${{ parameters.cheminDrainLocal }}${{ parameters.nomFichierOffline }} »"
+          Write-Host "Drain en cours... 2 minutes"
+          Start-Sleep -s 30
+          Write-Host "Drain en cours... 1 minute 30 secondes"
+          Start-Sleep -s 30
+          Write-Host "Drain en cours... 1 minute"
+          Start-Sleep -s 30
+          Write-Host "Drain en cours... 30 secondes"
+          Start-Sleep -s 30
+        }

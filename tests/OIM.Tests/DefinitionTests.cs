@@ -7,7 +7,7 @@ namespace OIM.Tests;
 public sealed class DefinitionTests
 {
     internal static string DossierExemple =>
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "definitions", "traitement-demande"));
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "definitions", "demo", "traitement-demande"));
 
     internal static PaquetDefinition PaquetExemple() => PaquetDefinition.DepuisDossier(DossierExemple);
 

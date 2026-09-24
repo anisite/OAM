@@ -1,6 +1,5 @@
 using System.Text.Json.Nodes;
 using DurableTask.Core;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -18,9 +17,15 @@ namespace OIM.Tests;
 [TestCategory("Integration")]
 public sealed class OrchestrationTests
 {
-    private const string Connexion = @"Server=(localdb)\OIM;Database=OIM_Tests;Integrated Security=True;TrustServerCertificate=True";
+    private const string Connexion = BaseDeTests.Connexion;
     private static IHost? _hote;
     private static string _dossierCourriels = string.Empty;
+
+    /// <summary>Équipe des processus de test; <see cref="H"/> : habilitations du moteur (toutes les équipes).</summary>
+    private const string Eq = "essais";
+    private static readonly Habilitations H = Habilitations.Systeme;
+
+    private static string Q(string id) => IdsEquipe.Qualifier(Eq, id);
 
     private static ServiceInstances Instances => _hote!.Services.GetRequiredService<ServiceInstances>();
     private static TaskHubClient Client => _hote!.Services.GetRequiredService<TaskHubClient>();
@@ -28,15 +33,7 @@ public sealed class OrchestrationTests
     [ClassInitialize]
     public static async Task Initialiser(TestContext _)
     {
-        try
-        {
-            await using var cn = new SqlConnection(Connexion.Replace("Database=OIM_Tests", "Database=master"));
-            await cn.OpenAsync();
-        }
-        catch (SqlException)
-        {
-            return;
-        }
+        if (!await BaseDeTests.AssurerAsync()) return;
 
         _dossierCourriels = Path.Combine(Path.GetTempPath(), "oim-tests-courriels", Guid.NewGuid().ToString("N"));
         var builder = Host.CreateApplicationBuilder();
@@ -52,11 +49,28 @@ public sealed class OrchestrationTests
         await _hote.StartAsync();
 
         var definitions = _hote.Services.GetRequiredService<ServiceDefinitions>();
+        var equipes = _hote.Services.GetRequiredService<ServiceEquipes>();
+        await equipes.AssurerAsync(Eq);
+        await equipes.AssurerAsync("autre");
         foreach (var paquet in PaquetsDeTest())
         {
-            var r = await definitions.DeployerAsync(paquet, "tests", null);
+            var r = await definitions.DeployerAsync(H, Eq, paquet, null);
             Assert.IsNotNull(r.Deploiement, string.Join("\n", r.Validation.Diagnostics));
         }
+
+        // Même id de processus dans une autre équipe, avec un autre résultat : le sous-processus du
+        // parent doit être celui de sa propre équipe.
+        var piege = await definitions.DeployerAsync(H, "autre", new PaquetDefinition("""
+            id: enfant
+            entrees:
+              n: { type: int, requis: true }
+            etapes:
+              - id: calcul
+                type: definir
+                variables: { double: "{{ entrees.n * 100 }}" }
+                fin: true
+            """), null);
+        Assert.AreEqual("autre.enfant", piege.Deploiement!.Id);
     }
 
     [ClassCleanup]
@@ -79,7 +93,7 @@ public sealed class OrchestrationTests
         var id = await DemarrerAsync("td-test", new() { ["dossierId"] = 7, ["courriel"] = "x@y.z" });
         await AttendreEvenementAsync(id, "decision");
 
-        await Instances.EnvoyerEvenementAsync(id, "decision", JsonNode.Parse("""{ "approuve": true }"""));
+        await Instances.EnvoyerEvenementAsync(H, id, "decision", JsonNode.Parse("""{ "approuve": true }"""));
         var fin = await AttendreFinAsync(id);
 
         Assert.AreEqual(OrchestrationStatus.Completed, fin.OrchestrationStatus);
@@ -95,7 +109,7 @@ public sealed class OrchestrationTests
         var id = await DemarrerAsync("td-test", new() { ["dossierId"] = 8, ["courriel"] = "x@y.z" });
         await AttendreEvenementAsync(id, "decision");
 
-        await Instances.EnvoyerEvenementAsync(id, "decision", JsonNode.Parse("""{ "approuve": false, "motif": "incomplet" }"""));
+        await Instances.EnvoyerEvenementAsync(H, id, "decision", JsonNode.Parse("""{ "approuve": false, "motif": "incomplet" }"""));
         var fin = await AttendreFinAsync(id);
 
         Assert.AreEqual("refuser", JsonNode.Parse(fin.Output)!["etapeFinale"]!.GetValue<string>());
@@ -115,7 +129,7 @@ public sealed class OrchestrationTests
         CollectionAssert.IsSubsetOf(new[] { "valider", "approbation", "relance" }, parcours);
         Assert.IsTrue(Directory.GetFiles(_dossierCourriels, "*.eml").Any(f => File.ReadAllText(f).Contains("approbateurs@exemple.gouv.qc.ca")));
 
-        await Instances.EnvoyerEvenementAsync(id, "decision", JsonNode.Parse("""{ "approuve": true }"""));
+        await Instances.EnvoyerEvenementAsync(H, id, "decision", JsonNode.Parse("""{ "approuve": true }"""));
         Assert.AreEqual(OrchestrationStatus.Completed, (await AttendreFinAsync(id)).OrchestrationStatus);
     }
 
@@ -123,7 +137,7 @@ public sealed class OrchestrationTests
     public async Task Evenement_recu_avant_l_attente_est_conserve()
     {
         var id = await DemarrerAsync("attente-tardive", new());
-        await Instances.EnvoyerEvenementAsync(id, "go", JsonNode.Parse("""{ "valeur": 5 }"""));
+        await Instances.EnvoyerEvenementAsync(H, id, "go", JsonNode.Parse("""{ "valeur": 5 }"""));
 
         var fin = await AttendreFinAsync(id);
         Assert.AreEqual(OrchestrationStatus.Completed, fin.OrchestrationStatus);
@@ -168,13 +182,13 @@ public sealed class OrchestrationTests
         var id = await DemarrerAsync("td-test", new() { ["dossierId"] = 10, ["courriel"] = "x@y.z" });
         await AttendreEvenementAsync(id, "decision");
 
-        await Instances.SuspendreAsync(id, "test");
+        await Instances.SuspendreAsync(H, id, "test");
         await AttendreAsync(id, e => e.OrchestrationStatus == OrchestrationStatus.Suspended, TimeSpan.FromSeconds(20));
 
-        await Instances.ReprendreAsync(id, "test");
+        await Instances.ReprendreAsync(H, id, "test");
         await AttendreAsync(id, e => e.OrchestrationStatus == OrchestrationStatus.Running, TimeSpan.FromSeconds(20));
 
-        await Instances.TerminerAsync(id, "fin du test");
+        await Instances.TerminerAsync(H, id, "fin du test");
         Assert.AreEqual(OrchestrationStatus.Terminated, (await AttendreFinAsync(id)).OrchestrationStatus);
     }
 
@@ -182,7 +196,7 @@ public sealed class OrchestrationTests
     public async Task Demarrage_synchrone_recoit_la_reponse_pendant_que_le_processus_continue()
     {
         var id = await DemarrerAsync("td-test", new() { ["dossierId"] = 11, ["courriel"] = "x@y.z" });
-        var r = await Instances.AttendreReponseAsync(id, TimeSpan.FromSeconds(20));
+        var r = await Instances.AttendreReponseAsync(H, id, TimeSpan.FromSeconds(20));
 
         Assert.AreEqual(NatureAttente.Reponse, r.Nature);
         Assert.AreEqual(201, r.StatutHttp);
@@ -190,7 +204,7 @@ public sealed class OrchestrationTests
 
         // Le processus poursuit : il attend maintenant la décision.
         await AttendreEvenementAsync(id, "decision");
-        await Instances.TerminerAsync(id, "fin du test");
+        await Instances.TerminerAsync(H, id, "fin du test");
     }
 
     [TestMethod]
@@ -199,15 +213,15 @@ public sealed class OrchestrationTests
         var nouvelle = await DemarrerAsync("td-test", new() { ["dossierId"] = 12, ["courriel"] = "x@y.z" });
 
         // Instance « ancienne » : entrée sans version de moteur, comme avant son introduction.
-        var ancienne = $"td-test-v1-{Guid.NewGuid():N}";
-        var version = (await _hote!.Services.GetRequiredService<ServiceDefinitions>().ObtenirAsync("td-test", null)).Version;
-        await Client.CreateOrchestrationInstanceAsync("td-test", version.ToString(), ancienne,
-            new Newtonsoft.Json.Linq.JRaw($$"""{ "definitionId": "td-test", "version": {{version}}, "entrees": { "dossierId": 13, "courriel": "x@y.z" } }"""));
+        var ancienne = Q($"td-test-v1-{Guid.NewGuid():N}");
+        var version = (await _hote!.Services.GetRequiredService<ServiceDefinitions>().ObtenirAsync(H, Q("td-test"), null)).Version;
+        await Client.CreateOrchestrationInstanceAsync(Q("td-test"), version.ToString(), ancienne,
+            new Newtonsoft.Json.Linq.JRaw($$"""{ "definitionId": "{{Q("td-test")}}", "version": {{version}}, "entrees": { "dossierId": 13, "courriel": "x@y.z" } }"""));
 
         foreach (var id in new[] { nouvelle, ancienne }) await AttendreEvenementAsync(id, "decision");
 
         var suivi = _hote.Services.GetRequiredService<RequetesSuivi>();
-        var historique = await suivi.HistoriqueAsync(nouvelle);
+        var historique = await suivi.HistoriqueAsync(H, nouvelle);
         var planifiee = historique.Single(h => h.Type == "TaskScheduled" && h.Nom == "oim.reponse");
         var terminee = historique.Single(h => h.Type == "TaskCompleted" && h.TacheId == planifiee.TacheId);
         // Planification : gabarit non évalué + contexte reçu; résultat : réponse produite.
@@ -215,12 +229,12 @@ public sealed class OrchestrationTests
         StringAssert.Contains(planifiee.Donnees, "etapes.valider.sortie.numero");
         StringAssert.Contains(terminee.Donnees, "D-2026-00042");
         Assert.IsFalse(terminee.Donnees!.Contains("contexte"));
-        Assert.IsFalse((await suivi.HistoriqueAsync(ancienne)).Any(h => h.Nom == "oim.reponse"));
+        Assert.IsFalse((await suivi.HistoriqueAsync(H, ancienne)).Any(h => h.Nom == "oim.reponse"));
 
         // Les deux se terminent normalement (aucune erreur de non-déterminisme à la relecture).
         foreach (var id in new[] { nouvelle, ancienne })
         {
-            await Instances.EnvoyerEvenementAsync(id, "decision", JsonNode.Parse("""{ "approuve": true }"""));
+            await Instances.EnvoyerEvenementAsync(H, id, "decision", JsonNode.Parse("""{ "approuve": true }"""));
             Assert.AreEqual(OrchestrationStatus.Completed, (await AttendreFinAsync(id)).OrchestrationStatus);
         }
     }
@@ -229,7 +243,7 @@ public sealed class OrchestrationTests
     public async Task Demarrage_synchrone_sans_etape_reponse_retourne_la_sortie_finale()
     {
         var id = await DemarrerAsync("enfant", new() { ["n"] = 4 });
-        var r = await Instances.AttendreReponseAsync(id, TimeSpan.FromSeconds(20));
+        var r = await Instances.AttendreReponseAsync(H, id, TimeSpan.FromSeconds(20));
 
         Assert.AreEqual(NatureAttente.Terminee, r.Nature);
         Assert.AreEqual(8L, r.Corps!["variables"]!["double"]!.GetValue<long>());
@@ -239,25 +253,65 @@ public sealed class OrchestrationTests
     public async Task Demarrage_synchrone_delai_depasse()
     {
         var id = await DemarrerAsync("attente-tardive", new());
-        var r = await Instances.AttendreReponseAsync(id, TimeSpan.FromMilliseconds(300));
+        var r = await Instances.AttendreReponseAsync(H, id, TimeSpan.FromMilliseconds(300));
 
         Assert.AreEqual(NatureAttente.DelaiDepasse, r.Nature);
-        await Instances.TerminerAsync(id, "fin du test");
+        await Instances.TerminerAsync(H, id, "fin du test");
     }
 
     [TestMethod]
     public async Task Entrees_invalides_sont_refusees()
     {
         var ex = await Assert.ThrowsExactlyAsync<ErreurPilotage>(() =>
-            Instances.DemarrerAsync("td-test", new JsonObject { ["dossierId"] = "abc" }));
+            Instances.DemarrerAsync(H, Q("td-test"), new JsonObject { ["dossierId"] = "abc" }));
         Assert.AreEqual(400, ex.StatutHttp);
         Assert.AreEqual(2, ex.Details.Count);
+    }
+
+    [TestMethod]
+    public async Task Une_equipe_ne_voit_ni_les_processus_ni_les_instances_d_une_autre()
+    {
+        var definitions = _hote!.Services.GetRequiredService<ServiceDefinitions>();
+        var suivi = _hote.Services.GetRequiredService<RequetesSuivi>();
+        var alice = new Habilitations("alice", false, false, new HashSet<string> { Eq });
+        var bob = new Habilitations("bob", false, false, new HashSet<string> { "autre" });
+        var support = new Habilitations("support", false, true, new HashSet<string>());
+
+        var id = (await Instances.DemarrerAsync(alice, Q("attente-tardive"), new JsonObject(), instanceId: "dossier-1")).InstanceId;
+        Assert.AreEqual(Q("dossier-1"), id);
+
+        // Bob (autre équipe) : tout est « introuvable ».
+        async Task Introuvable(Func<Task> action) =>
+            Assert.AreEqual(404, (await Assert.ThrowsExactlyAsync<ErreurPilotage>(action)).StatutHttp);
+        await Introuvable(() => Instances.ObtenirAsync(bob, id));
+        await Introuvable(() => Instances.TerminerAsync(bob, id, null));
+        await Introuvable(() => Instances.EnvoyerEvenementAsync(bob, id, "go", null));
+        await Introuvable(() => suivi.HistoriqueAsync(bob, id));
+        await Introuvable(() => Instances.DemarrerAsync(bob, Q("enfant"), new JsonObject { ["n"] = 1 }));
+        await Introuvable(() => definitions.ObtenirAsync(bob, Q("enfant"), null));
+        await Introuvable(() => suivi.ListerAsync(bob, new FiltreInstances(Equipe: Eq)));
+        Assert.IsFalse((await suivi.ListerAsync(bob, new FiltreInstances(Recherche: "dossier-1"))).Elements.Any(i => i.InstanceId == id));
+        CollectionAssert.AreEqual(new[] { "autre" }, (await definitions.ListerAsync(bob)).Select(d => d.Equipe).Distinct().ToArray());
+
+        // Le même instanceId dans l'autre équipe ne crée aucun conflit.
+        var deBob = (await Instances.DemarrerAsync(bob, "autre.enfant", new JsonObject { ["n"] = 1 }, instanceId: "dossier-1")).InstanceId;
+        Assert.AreEqual("autre.dossier-1", deBob);
+
+        // Alice (son équipe) voit son instance.
+        Assert.IsTrue((await suivi.ListerAsync(alice, new FiltreInstances(Recherche: "dossier-1"))).Elements.Select(i => i.InstanceId).SequenceEqual([id]));
+        Assert.IsTrue((await definitions.ListerAsync(alice)).All(d => d.Equipe == Eq));
+
+        // Support : voit et pilote toutes les équipes, sans déployer.
+        Assert.AreEqual(2, (await suivi.ListerAsync(support, new FiltreInstances(Recherche: "dossier-1"))).Total);
+        var refus = await Assert.ThrowsExactlyAsync<ErreurPilotage>(() => definitions.DeployerAsync(support, Eq, PaquetsDeTest().First(), null));
+        Assert.AreEqual(403, refus.StatutHttp);
+        await Instances.TerminerAsync(support, id, "fin du test");
     }
 
     // ── Outils ───────────────────────────────────────────────────────────────
 
     private static async Task<string> DemarrerAsync(string processus, JsonObject entrees) =>
-        (await Instances.DemarrerAsync(processus, entrees, instanceId: $"{processus}-{Guid.NewGuid():N}")).InstanceId;
+        (await Instances.DemarrerAsync(H, Q(processus), entrees, instanceId: $"{processus}-{Guid.NewGuid():N}")).InstanceId;
 
     private static Task<OrchestrationState> AttendreEvenementAsync(string id, string evenement) =>
         AttendreAsync(id, e => e.OrchestrationStatus == OrchestrationStatus.Running

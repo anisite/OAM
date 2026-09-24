@@ -1,0 +1,37 @@
+# Déploiement d'OIM sur un serveur : gabarit réutilisable Deployer.SiteWeb avec les valeurs d'OIM.
+#
+# Variables (groupes OIM.Parametres.*) :
+#   OIM.Palier, OIM.Feature        nom du site : $(OIM.Palier).$(OIM.Feature).OIM.Api (ex. pr.release.OIM.Api)
+#   OIM.CheminPhysique             ex. C:\inetpub\wwwroot\OIM
+#   OIM.DNS, OIM.CertificatIntra   nom d'hôte HTTPS et empreinte du certificat
+#   OIM.AppPoolUser/AppPoolPass    compte de service du pool (mot de passe secret)
+#   OIM.MaxProcess                 processus du pool (1 recommandé)
+# et les clés de appsettings.json à substituer (ConnectionStrings.Oim, Oim.Securite.Fournisseurs.oim.Cle, …).
+
+steps:
+  - download: current
+    artifact: drop
+
+  - template: Deployer/Deployer.SiteWeb.yml
+    parameters:
+      siteWeb: 'OIM.Api'
+      palier: '$(OIM.Palier)'
+      feature: '$(OIM.Feature)'
+      cheminPhysique: '$(OIM.CheminPhysique)'
+      dns: '$(OIM.DNS)'
+      certificatIntra: '$(OIM.CertificatIntra)'
+      appPoolUser: '$(OIM.AppPoolUser)'
+      appPoolPass: '$(OIM.AppPoolPass)'
+      maxProcess: '$(OIM.MaxProcess)'
+      # Authentification Windows (GET /api/auth/jeton) ET anonyme (routes à jeton Bearer).
+      anonyme: 'true'
+      windows: 'true'
+      # Le pool ne doit jamais s'arrêter : il héberge le worker DurableTask qui exécute les processus
+      # (minuteries, événements) même sans requête HTTP. preloadEnabled exige Application Initialization.
+      idleTimeout: '00:00:00'
+      appCmdSupplementaires: |
+        set apppool "$(OIM.Palier).$(OIM.Feature).OIM.Api" /startMode:AlwaysRunning
+        set apppool "$(OIM.Palier).$(OIM.Feature).OIM.Api" /recycling.periodicRestart.time:00:00:00
+        set app "$(OIM.Palier).$(OIM.Feature).OIM.Api/" /preloadEnabled:true
+      # Contient la clé de signature des jetons et la chaîne de connexion.
+      fichierSecurise: 'appsettings.json'

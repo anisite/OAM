@@ -1,0 +1,113 @@
+# Équivalent YAML du groupe de tâches « Deployer.SiteWeb » : site IIS « palier.feature.siteWeb » en HTTPS,
+# pool « No Managed Code » sous un compte de service, déploiement du paquet avec substitution de variables,
+# BackConnectionHostNames, sécurisation d'un fichier de secrets et source du journal d'événements (optionnels).
+# Le paquet (siteWeb.zip) et AddBackConnectionHostNames.ps1 viennent de l'artefact déjà téléchargé.
+
+parameters:
+  - name: siteWeb               # GED.SiteWeb (nom du projet / du zip, ex. OIM.Api)
+    type: string
+  - name: palier                # GED.Palier (sa, ac, it, pr)
+    type: string
+  - name: feature               # GED.Feature (master, release, prod)
+    type: string
+  - name: cheminPhysique        # GED.CheminPhysique
+    type: string
+  - name: dns                   # GED.DNS
+    type: string
+  - name: certificatIntra       # GED.CertificatIntra (empreinte)
+    type: string
+  - name: appPoolUser           # GED.AppPoolUser
+    type: string
+  - name: appPoolPass           # GED.AppPoolPass
+    type: string
+  - name: maxProcess            # GED.Intra.MaxProcess
+    type: string
+    default: '1'
+  - name: anonyme               # GED.SiteWeb.Anonyme
+    type: string
+    default: 'true'
+  - name: windows               # GED.SiteWeb.Windows
+    type: string
+    default: 'true'
+  - name: idleTimeout           # arrêt du pool après inactivité (GED : 24 h; 00:00:00 = jamais)
+    type: string
+    default: '24:00:00'
+  - name: appCmdSupplementaires # commandes appcmd ajoutées à la configuration du site et du pool
+    type: string
+    default: ''
+  - name: jsonFiles             # fichiers où substituer les variables
+    type: string
+    default: 'appsettings.json'
+  - name: fichierSecurise       # fichier réservé aux administrateurs et à l'App Pool (vide : aucun)
+    type: string
+    default: ''
+  - name: sourceJournal         # source du journal d'événements Application à créer (vide : aucune)
+    type: string
+    default: ''
+  - name: dossierArtefact       # contenu de l'artefact (paquet et scripts)
+    type: string
+    default: '$(Pipeline.Workspace)/drop'
+
+steps:
+  - template: Deployer.DeleteSslCert.yml
+    parameters:
+      hostNameAndPort: '${{ parameters.dns }}:443'
+
+  - task: IISWebAppManagementOnMachineGroup@0
+    displayName: 'Manage IISWebsite ${{ parameters.siteWeb }}'
+    inputs:
+      IISDeploymentType: 'IISWebsite'
+      ActionIISWebsite: 'CreateOrUpdateWebsite'
+      WebsiteName: '${{ parameters.palier }}.${{ parameters.feature }}.${{ parameters.siteWeb }}'
+      WebsitePhysicalPath: '${{ parameters.cheminPhysique }}\${{ parameters.palier }}.${{ parameters.feature }}.${{ parameters.siteWeb }}'
+      WebsitePhysicalPathAuth: 'WebsiteUserPassThrough'
+      AddBinding: true
+      Bindings: '{"bindings":[{"protocol":"https","ipAddress":"All Unassigned","port":"443","hostname":"${{ parameters.dns }}","sslThumbprint":"${{ parameters.certificatIntra }}","sniFlag":true}]}'
+      CreateOrUpdateAppPoolForWebsite: true
+      ConfigureAuthenticationForWebsite: true
+      AppPoolNameForWebsite: '${{ parameters.palier }}.${{ parameters.feature }}.${{ parameters.siteWeb }}'
+      DotNetVersionForWebsite: 'No Managed Code'
+      PipeLineModeForWebsite: 'Integrated'
+      AppPoolIdentityForWebsite: 'SpecificUser'
+      AppPoolUsernameForWebsite: '${{ parameters.appPoolUser }}'
+      AppPoolPasswordForWebsite: '${{ parameters.appPoolPass }}'
+      AppCmdCommands: |
+        set apppool "${{ parameters.palier }}.${{ parameters.feature }}.${{ parameters.siteWeb }}" /processModel.idleTimeout:${{ parameters.idleTimeout }}
+        set apppool "${{ parameters.palier }}.${{ parameters.feature }}.${{ parameters.siteWeb }}" /processModel.maxProcesses:${{ parameters.maxProcess }}
+
+        set config "${{ parameters.palier }}.${{ parameters.feature }}.${{ parameters.siteWeb }}" /section:anonymousAuthentication /enabled:${{ parameters.anonyme }} /commit:apphost
+        set config "${{ parameters.palier }}.${{ parameters.feature }}.${{ parameters.siteWeb }}" /section:windowsAuthentication /enabled:${{ parameters.windows }} /commit:apphost
+        ${{ parameters.appCmdSupplementaires }}
+
+  - task: IISWebAppDeploymentOnMachineGroup@0
+    displayName: 'Deploy IIS Website/App: ${{ parameters.siteWeb }}'
+    inputs:
+      WebSiteName: '${{ parameters.palier }}.${{ parameters.feature }}.${{ parameters.siteWeb }}'
+      Package: '${{ parameters.dossierArtefact }}/${{ parameters.siteWeb }}.zip'
+      RemoveAdditionalFilesFlag: true
+      TakeAppOfflineFlag: true
+      XmlVariableSubstitution: true
+      JSONFiles: '${{ parameters.jsonFiles }}'
+
+  - task: PowerShell@2
+    displayName: 'PowerShell Script AddBackConnectionHostNames'
+    inputs:
+      targetType: 'filePath'
+      filePath: '${{ parameters.dossierArtefact }}/AddBackConnectionHostNames.ps1'
+      arguments: '${{ parameters.dns }}'
+      errorActionPreference: 'stop'
+
+  - ${{ if ne(parameters.fichierSecurise, '') }}:
+      - template: Deployer.SecuriserFichier.yml
+        parameters:
+          cheminPhysique: '${{ parameters.cheminPhysique }}'
+          site: '${{ parameters.palier }}.${{ parameters.feature }}.${{ parameters.siteWeb }}'
+          fichier: '${{ parameters.fichierSecurise }}'
+
+  - ${{ if ne(parameters.sourceJournal, '') }}:
+      - task: EventLogSource@1
+        displayName: 'Create Event Log Source(s)'
+        inputs:
+          LogSourceNames: '${{ parameters.sourceJournal }}'
+          LogSourceAction: 'Create'
+          LogName: 'Application'

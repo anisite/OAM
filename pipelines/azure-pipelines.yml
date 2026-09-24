@@ -1,10 +1,35 @@
+# OIM — build et déploiement IIS, sur le modèle des releases classiques de GED
+# (Release.GED.Complet.Satellite.master et Release.GED.Complet.release) :
+#
+#   main       → Build → SAT
+#   release/*  → Build → ACCP → IT (bascule A/B) → PROD (bascule A/B) → ACCP ligne PROD
+#   PR         → Build seulement
+#
+# Prérequis Azure DevOps (une fois) :
+#   - Environnements SAT, ACCP, IT, PROD : ressources « machine virtuelle » (agents installés par la trousse,
+#     configurés avec --environment) étiquetées « OIM », plus « 1 » ou « 2 » pour les nœuds A et B d'IT et PROD.
+#   - Approbations (« Release Administrators ») sur les environnements ACCP, IT et PROD : elles remplacent
+#     les approbations de prédéploiement des releases classiques.
+#   - Groupes de variables (bibliothèque) : OIM.Parametres.General et OIM.Parametres.<palier>
+#     (sat, ac, it, PROD, ac.ligne.prod). Voir deployer-oim.yml et la section plus bas.
+#
+# Les étapes de déploiement sont des gabarits réutilisables, équivalents YAML des groupes de tâches de GED :
+# pipelines/Deployer/Deployer.*.yml (à déplacer plus tard dans un dépôt partagé entre applications).
+#   - Site drain.local sur les serveurs d'IT et de PROD (sonde de l'équilibreur), comme pour GED.
+
+name: $(SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)
+
 trigger:
+  batch: true
   branches:
     include:
       - main
-      - master
-      - develop
       - release/*
+
+pr:
+  branches:
+    include:
+      - main
 
 pool:
   name: 'Default'
@@ -17,10 +42,10 @@ variables:
 
 stages:
   - stage: Build
-    displayName: 'Build & Test'
+    displayName: 'Build'
     jobs:
       - job: BuildAndTest
-        displayName: 'Build, Test, Publish'
+        displayName: 'Build, tests, publication'
         steps:
           - task: UseDotNet@2
             displayName: 'Installer .NET SDK'
@@ -33,14 +58,12 @@ stages:
             inputs:
               versionSpec: '$(nodeVersion)'
 
-          # Restauration NuGet
           - task: DotNetCoreCLI@2
             displayName: 'dotnet restore'
             inputs:
               command: 'restore'
               projects: '$(solution)'
 
-          # Build backend
           - task: DotNetCoreCLI@2
             displayName: 'dotnet build'
             inputs:
@@ -48,126 +71,113 @@ stages:
               projects: '$(solution)'
               arguments: '--configuration $(buildConfiguration) --no-restore'
 
-          # Tests
+          # Unitaires + intégration + tests métier (definitions/<equipe>/<processus>/tests/*.yml).
+          # Les tests d'intégration exigent LocalDB « OIM » sur l'agent, sinon ils sont « non concluants ».
           - task: DotNetCoreCLI@2
             displayName: 'dotnet test'
             inputs:
               command: 'test'
               projects: 'tests/**/*.csproj'
-              arguments: '--configuration $(buildConfiguration) --no-build --logger trx --results-directory $(Agent.TempDirectory)/TestResults'
+              arguments: '--configuration $(buildConfiguration) --no-build'
+              publishTestResults: true
 
-          - task: PublishTestResults@2
-            displayName: 'Publier résultats de tests'
-            condition: always()
-            inputs:
-              testResultsFormat: 'VSTest'
-              testResultsFiles: '$(Agent.TempDirectory)/TestResults/*.trx'
-
-          # Build frontend Vue.js
+          # Interface Vue (vérification de types + build) → sources/OIM.Api/wwwroot : servie par le même site IIS.
           - script: |
               cd sources/OIM.Frontend
               npm ci
               npm run build
-            displayName: 'Build Frontend Vue.js'
+            displayName: 'Build de l’interface'
 
-          # Publish API (inclut wwwroot avec le frontend buildé)
           - task: DotNetCoreCLI@2
-            displayName: 'dotnet publish API'
+            displayName: 'Publish OIM.Api'
             inputs:
               command: 'publish'
+              publishWebProjects: false
               projects: 'sources/OIM.Api/OIM.Api.csproj'
-              arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/api'
+              arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+              zipAfterPublish: true
 
-          - task: PublishBuildArtifacts@1
-            displayName: 'Publier artefacts'
+          - task: CopyFiles@2
+            displayName: 'Copier les scripts de déploiement'
             inputs:
-              PathtoPublish: '$(Build.ArtifactStagingDirectory)/api'
-              ArtifactName: 'oim-api'
+              SourceFolder: 'pipelines/scripts'
+              TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
-  # Déploiement SAT
-  - stage: Deploy_SAT
-    displayName: 'Déploiement SAT'
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publier l’artefact drop'
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+              artifact: 'drop'
+
+  # ── Configuration par palier ────────────────────────────────────────────────
+  # OIM.Parametres.General : OIM.CheminPhysique (C:\inetpub\wwwroot\OIM), OIM.MaxProcess (1)
+  # OIM.Parametres.<palier> :
+  #   OIM.Palier (sa, ac, it, pr), OIM.Feature (master, release, prod), OIM.DNS, OIM.CertificatIntra,
+  #   OIM.AppPoolUser, OIM.AppPoolPass (secret)
+  #   Clés substituées dans appsettings.json :
+  #     ConnectionStrings.Oim                   chaîne de connexion
+  #     Oim.Securite.Fournisseurs.oim.Cle       clé de signature des jetons (secrète, identique sur les nœuds A et B)
+  #     Oim.Securite.Administrateurs.0          groupe AD des administrateurs OIM
+  #     Oim.Securite.Support.0                  groupe AD du support OIM
+  #     Oim.Courriel.Hote, Oim.Courriel.De      SMTP
+
+  - stage: SAT
+    displayName: 'SAT'
     dependsOn: Build
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    variables:
+      - group: OIM.Parametres.General
+      - group: OIM.Parametres.sat
     jobs:
-      - deployment: DeploySAT
-        displayName: 'Déployer sur SAT'
-        environment:
-          name: 'SAT'
-          resourceType: VirtualMachine
-          tags: Intranet
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - task: IISWebAppDeploymentOnMachineGroup@0
-                  displayName: 'Déployer sur IIS SAT'
-                  inputs:
-                    WebSiteName: 'OIM-SAT'
-                    Package: '$(Pipeline.Workspace)/oim-api/**/*.zip'
+      - template: palier-un-noeud.yml
+        parameters:
+          environnement: 'SAT'
 
-  # Déploiement ACCP
-  - stage: Deploy_ACCP
-    displayName: 'Déploiement ACCP'
-    dependsOn: Deploy_SAT
+  - stage: ACCP
+    displayName: 'ACCP'
+    dependsOn: Build
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'))
+    variables:
+      - group: OIM.Parametres.General
+      - group: OIM.Parametres.ac
+    jobs:
+      - template: palier-un-noeud.yml
+        parameters:
+          environnement: 'ACCP'
+
+  - stage: IT
+    displayName: 'IT'
+    dependsOn: ACCP
     condition: succeeded()
+    variables:
+      - group: OIM.Parametres.General
+      - group: OIM.Parametres.it
     jobs:
-      - deployment: DeployACCP
-        displayName: 'Déployer sur ACCP'
-        environment:
-          name: 'ACCP'
-          resourceType: VirtualMachine
-          tags: Intranet
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - task: IISWebAppDeploymentOnMachineGroup@0
-                  displayName: 'Déployer sur IIS ACCP'
-                  inputs:
-                    WebSiteName: 'OIM-ACCP'
-                    Package: '$(Pipeline.Workspace)/oim-api/**/*.zip'
+      - template: palier-deux-noeuds.yml
+        parameters:
+          environnement: 'IT'
 
-  # Déploiement IT
-  - stage: Deploy_IT
-    displayName: 'Déploiement IT'
-    dependsOn: Deploy_ACCP
+  - stage: PROD
+    displayName: 'PROD'
+    dependsOn: IT
     condition: succeeded()
+    variables:
+      - group: OIM.Parametres.General
+      - group: OIM.Parametres.PROD
     jobs:
-      - deployment: DeployIT
-        displayName: 'Déployer sur IT'
-        environment:
-          name: 'IT'
-          resourceType: VirtualMachine
-          tags: Intranet
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - task: IISWebAppDeploymentOnMachineGroup@0
-                  displayName: 'Déployer sur IIS IT'
-                  inputs:
-                    WebSiteName: 'OIM-IT'
-                    Package: '$(Pipeline.Workspace)/oim-api/**/*.zip'
+      - template: palier-deux-noeuds.yml
+        parameters:
+          environnement: 'PROD'
 
-  # Déploiement PROD
-  - stage: Deploy_PROD
-    displayName: 'Déploiement PROD'
-    dependsOn: Deploy_IT
-    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'))
+  # Comme GED : l'ACCP reçoit ensuite la version de production dans un site « prod » distinct.
+  - stage: ACCP_LignePROD
+    displayName: 'ACCP ligne PROD'
+    dependsOn: PROD
+    condition: succeeded()
+    variables:
+      - group: OIM.Parametres.General
+      - group: OIM.Parametres.ac.ligne.prod
     jobs:
-      - deployment: DeployPROD
-        displayName: 'Déployer sur PROD'
-        environment:
-          name: 'PROD'
-          resourceType: VirtualMachine
-          tags: Intranet
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - task: IISWebAppDeploymentOnMachineGroup@0
-                  displayName: 'Déployer sur IIS PROD'
-                  inputs:
-                    WebSiteName: 'OIM-PROD'
-                    Package: '$(Pipeline.Workspace)/oim-api/**/*.zip'
+      - template: palier-un-noeud.yml
+        parameters:
+          environnement: 'ACCP'

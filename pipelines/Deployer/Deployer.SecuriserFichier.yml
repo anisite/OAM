@@ -1,0 +1,47 @@
+# Équivalent YAML du groupe de tâches « Deployer.SecuriserFichier » : retire tous les accès au fichier
+# sauf Administrateurs, puis donne le contrôle total à l'App Pool du site.
+
+parameters:
+  - name: cheminPhysique        # GED.CheminPhysique (ex. C:\inetpub\wwwroot\OIM)
+    type: string
+  - name: site                  # GED.Palier.GED.Feature.GED.SiteWeb (nom du site et du pool)
+    type: string
+  - name: fichier               # GED.File (ex. secure.json, appsettings.json)
+    type: string
+
+steps:
+  - task: PowerShell@2
+    displayName: 'Sécuriser ${{ parameters.fichier }}'
+    inputs:
+      targetType: 'inline'
+      errorActionPreference: 'continue'
+      script: |
+        # Flusher tous les accès sauf Admin et ajouter l'App Pool au fichier
+        $User = "IIS AppPool\${{ parameters.site }}"
+        $Group = "Builtin\Administrators"
+        $Path = "${{ parameters.cheminPhysique }}\${{ parameters.site }}\${{ parameters.fichier }}"
+        Write-Host "Fichier à sécuriser : « $Path »"
+
+        if (Test-Path $Path -PathType Leaf)
+        {
+          # Désactiver l'héritage
+          $Acl = Get-Acl -Path $Path
+          $Acl.SetAccessRuleProtection($true, $true)
+          $Acl | Set-Acl
+          Write-Host "Héritage de la sécurité désactivé"
+
+          # Flusher tous les accès sauf Admin
+          $Acl = Get-Acl -Path $Path
+          $Acl.Access | ForEach { if ($_.IdentityReference -ne $Group) { [Void]$Acl.RemoveAccessRule($_) } }
+          Write-Host "Fichier sécurisé, seul le groupe « $Group » peut y accéder"
+
+          # Ajouter l'App Pool
+          $AccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($User, "FullControl", "Allow")
+          $Acl.SetAccessRule($AccessRule)
+          $Acl | Set-Acl
+          Write-Host "Fichier « $Path » sécurisé, l'App Pool y a accès via « $User »"
+        }
+        else
+        {
+          Write-Host "Le fichier « $Path » n'existe pas!"
+        }

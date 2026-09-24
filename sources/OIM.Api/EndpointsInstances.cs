@@ -22,7 +22,7 @@ public static class EndpointsInstances
         // Démarrage. Avec ?attendre=30s, l'appel est synchrone : il retourne la réponse publiée par une
         // étape « reponse » (ou la sortie finale), sinon 202 + URL de suivi à l'expiration du délai.
         api.MapPost("/processus/{processus}/instances", async (string processus, int? version, string? instanceId, string? attendre,
-            HttpRequest requete, ServiceInstances s, IOptions<OptionsOim> options, HttpContext http, CancellationToken ct) =>
+            HttpRequest requete, Habilitations h, ServiceInstances s, IOptions<OptionsOim> options, HttpContext http, CancellationToken ct) =>
         {
             var debut = Stopwatch.GetTimestamp();
             var entrees = await LireCorpsAsync(requete, ct) switch
@@ -31,24 +31,24 @@ public static class EndpointsInstances
                 JsonObject o => o,
                 _ => throw ErreurPilotage.Invalide("Le corps doit être un objet JSON contenant les entrées.")
             };
-            var r = await s.DemarrerAsync(processus, entrees, version, instanceId, http.User.Utilisateur(), ct);
+            var r = await s.DemarrerAsync(h, processus, entrees, version, instanceId, ct);
 
             if (LireAttente(attendre, options.Value) is not { } delai)
                 return Results.Accepted(UrlInstance(r.InstanceId), r);
-            return Repondre(await s.AttendreReponseAsync(r.InstanceId, delai, ct), http, debut);
+            return Repondre(await s.AttendreReponseAsync(h, r.InstanceId, delai, ct), http, debut);
         }).WithTags("Client");
 
         // Reprise de l'attente après un 202 (ex. délai trop court côté appelant).
-        api.MapGet("/instances/{id}/reponse", async (string id, string? attendre, ServiceInstances s, IOptions<OptionsOim> options,
+        api.MapGet("/instances/{id}/reponse", async (string id, string? attendre, Habilitations h, ServiceInstances s, IOptions<OptionsOim> options,
             HttpContext http, CancellationToken ct) =>
         {
             var debut = Stopwatch.GetTimestamp();
-            return Repondre(await s.AttendreReponseAsync(id, LireAttente(attendre, options.Value) ?? TimeSpan.Zero, ct), http, debut);
+            return Repondre(await s.AttendreReponseAsync(h, id, LireAttente(attendre, options.Value) ?? TimeSpan.Zero, ct), http, debut);
         }).WithTags("Client");
 
-        api.MapGet("/instances/{id}/statut", async (string id, ServiceInstances s) =>
+        api.MapGet("/instances/{id}/statut", async (string id, Habilitations h, ServiceInstances s) =>
         {
-            var i = await s.ObtenirAsync(id);
+            var i = await s.ObtenirAsync(h, id);
             return new
             {
                 i.InstanceId,
@@ -63,9 +63,10 @@ public static class EndpointsInstances
             };
         }).WithTags("Client");
 
-        api.MapPost("/instances/{id}/evenements/{nom}", async (string id, string nom, HttpRequest requete, ServiceInstances s, CancellationToken ct) =>
+        api.MapPost("/instances/{id}/evenements/{nom}", async (string id, string nom, HttpRequest requete, Habilitations h, ServiceInstances s,
+            CancellationToken ct) =>
         {
-            await s.EnvoyerEvenementAsync(id, nom, await LireCorpsAsync(requete, ct));
+            await s.EnvoyerEvenementAsync(h, id, nom, await LireCorpsAsync(requete, ct));
             return Results.Accepted();
         }).WithTags("Client");
 
@@ -73,50 +74,51 @@ public static class EndpointsInstances
 
         var g = api.MapGroup("/instances").WithTags("Pilotage");
 
-        g.MapGet("/", (RequetesSuivi q, string? statut, string? processus, string? recherche, DateTime? depuis, DateTime? jusqua,
-                bool? attente, bool? sousProcessus, int? page, int? taille, CancellationToken ct) =>
-            q.ListerAsync(new FiltreInstances(
+        g.MapGet("/", (Habilitations h, RequetesSuivi q, string? equipe, string? statut, string? processus, string? recherche, DateTime? depuis,
+                DateTime? jusqua, bool? attente, bool? sousProcessus, int? page, int? taille, CancellationToken ct) =>
+            q.ListerAsync(h, new FiltreInstances(equipe,
                 statut?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
                 processus, recherche, depuis, jusqua, attente ?? false, sousProcessus ?? true, page ?? 1, taille ?? 25), ct));
 
-        g.MapGet("/{id}", (string id, ServiceInstances s) => s.ObtenirAsync(id));
+        g.MapGet("/{id}", (string id, Habilitations h, ServiceInstances s) => s.ObtenirAsync(h, id));
 
-        g.MapGet("/{id}/historique", (string id, RequetesSuivi q, CancellationToken ct) => q.HistoriqueAsync(id, ct));
+        g.MapGet("/{id}/historique", (string id, Habilitations h, RequetesSuivi q, CancellationToken ct) => q.HistoriqueAsync(h, id, ct));
 
-        g.MapPost("/{id}/terminer", async (string id, Raison? r, ServiceInstances s) =>
+        g.MapPost("/{id}/terminer", async (string id, Raison? r, Habilitations h, ServiceInstances s) =>
         {
-            await s.TerminerAsync(id, r?.Texte);
+            await s.TerminerAsync(h, id, r?.Texte);
             return Results.Accepted();
         });
 
-        g.MapPost("/{id}/suspendre", async (string id, Raison? r, ServiceInstances s) =>
+        g.MapPost("/{id}/suspendre", async (string id, Raison? r, Habilitations h, ServiceInstances s) =>
         {
-            await s.SuspendreAsync(id, r?.Texte);
+            await s.SuspendreAsync(h, id, r?.Texte);
             return Results.Accepted();
         });
 
-        g.MapPost("/{id}/reprendre", async (string id, Raison? r, ServiceInstances s) =>
+        g.MapPost("/{id}/reprendre", async (string id, Raison? r, Habilitations h, ServiceInstances s) =>
         {
-            await s.ReprendreAsync(id, r?.Texte);
+            await s.ReprendreAsync(h, id, r?.Texte);
             return Results.Accepted();
         });
 
-        g.MapPost("/{id}/relancer", async (string id, Raison? r, ServiceInstances s) =>
+        g.MapPost("/{id}/relancer", async (string id, Raison? r, Habilitations h, ServiceInstances s) =>
         {
-            await s.RelancerAsync(id, r?.Texte);
+            await s.RelancerAsync(h, id, r?.Texte);
             return Results.Accepted();
         });
 
-        g.MapPost("/{id}/redemarrer", async (string id, Redemarrage? r, ServiceInstances s, HttpContext http) =>
-            Results.Accepted(null, await s.RedemarrerAsync(id, r?.VersionCourante ?? false, http.User.Utilisateur())));
+        g.MapPost("/{id}/redemarrer", async (string id, Redemarrage? r, Habilitations h, ServiceInstances s) =>
+            Results.Accepted(null, await s.RedemarrerAsync(h, id, r?.VersionCourante ?? false)));
 
-        g.MapDelete("/{id}", async (string id, ServiceInstances s) =>
+        g.MapDelete("/{id}", async (string id, Habilitations h, ServiceInstances s) =>
         {
-            await s.PurgerAsync(id);
+            await s.PurgerAsync(h, id);
             return Results.NoContent();
         });
 
-        api.MapGet("/tableau-de-bord", (RequetesSuivi q, CancellationToken ct) => q.StatistiquesAsync(ct)).WithTags("Pilotage");
+        api.MapGet("/tableau-de-bord", (string? equipe, Habilitations h, RequetesSuivi q, CancellationToken ct) =>
+            q.StatistiquesAsync(h, equipe, ct)).WithTags("Pilotage");
     }
 
     // Journal lisible : accents et apostrophes non échappés.

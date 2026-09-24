@@ -6,18 +6,18 @@
       <div class="entete-page">
         <div>
           <div class="entete-page-titre">
-            <h1>{{ modele.nom ?? detail.id }}</h1>
+            <h1>{{ modele.nom ?? idLocal(detail.id) }}</h1>
             <span class="utd-etiquette">v{{ detail.version }}</span>
             <span v-if="resume" class="utd-pastille" :class="resume.actif ? 'vert' : 'gris'">{{ resume.actif ? 'Actif' : 'Désactivé' }}</span>
           </div>
-          <p class="sous-titre texte-mono">{{ detail.id }}</p>
+          <p class="sous-titre texte-mono">{{ idLocal(detail.id) }}</p>
           <p v-if="modele.description" class="utd-largeur-max-zone-texte">{{ modele.description }}</p>
         </div>
         <div class="barre-actions">
           <button type="button" class="utd-btn primaire compact" :disabled="resume?.actif === false && versionAffichee === undefined" @click="modaleDemarrer = true">
             Démarrer une instance
           </button>
-          <router-link :to="`/concepteur/${encodeURIComponent(detail.id)}`" class="utd-btn secondaire compact">Ouvrir dans le concepteur</router-link>
+          <router-link :to="lienConcepteur(detail.id)" class="utd-btn secondaire compact">Ouvrir dans le concepteur</router-link>
           <button type="button" class="utd-btn secondaire compact" @click="api.telechargerZip(detail.id, detail.version)">
             Télécharger (.zip)
           </button>
@@ -28,7 +28,7 @@
       </div>
 
       <utd-avis v-if="versionAffichee !== undefined && versionAffichee !== resume?.versionCourante" type="avertissement" titre="Version antérieure">
-        <p>Vous consultez la version {{ versionAffichee }}. <router-link :to="`/processus/${encodeURIComponent(detail.id)}`">Afficher la version courante</router-link></p>
+        <p>Vous consultez la version {{ versionAffichee }}. <router-link :to="lienProcessus(detail.id)">Afficher la version courante</router-link></p>
       </utd-avis>
 
       <dl class="grille-infos mb-16">
@@ -36,7 +36,7 @@
         <div><dt>Par</dt><dd>{{ detail.deployePar ?? '—' }}</dd></div>
         <div><dt>Entrées</dt><dd>{{ modele.entrees.map((e) => `${e.nom}${e.requis ? '*' : ''}: ${e.type}`).join(', ') || '—' }}</dd></div>
         <div><dt>Étapes</dt><dd>{{ modele.etapes.length }}</dd></div>
-        <div><dt>Instances</dt><dd><router-link :to="{ path: '/instances', query: { processus: detail.id } }">Voir les instances</router-link></dd></div>
+        <div><dt>Instances</dt><dd><router-link :to="{ path: lien('/instances'), query: { processus: detail.id } }">Voir les instances</router-link></dd></div>
       </dl>
 
       <utd-onglets id="ongletsProcessus" titre="Définition du processus">
@@ -80,7 +80,7 @@
             </ul>
             <p v-else class="zone-vide">
               Aucun cas de test dans cette version. Ajoutez-en dans le
-              <router-link :to="`/concepteur/${encodeURIComponent(detail.id)}`">concepteur</router-link> (onglet « Fichiers annexes »).
+              <router-link :to="lienConcepteur(detail.id)">concepteur</router-link> (onglet « Fichiers annexes »).
             </p>
           </div>
         </utd-onglet>
@@ -100,7 +100,7 @@
               <tbody>
                 <tr v-for="v in detail.versions" :key="v.version">
                   <td>
-                    <router-link :to="{ path: `/processus/${encodeURIComponent(detail.id)}`, query: { version: v.version } }">v{{ v.version }}</router-link>
+                    <router-link :to="{ path: lienProcessus(detail.id), query: { version: v.version } }">v{{ v.version }}</router-link>
                     <span v-if="v.version === resume?.versionCourante" class="utd-etiquette">courante</span>
                   </td>
                   <td>{{ dateHeure(v.deployeLe) }}</td>
@@ -123,6 +123,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/lib/api'
+import { idLocal, useEquipe } from '@/lib/equipe'
 import { dateHeure } from '@/lib/format'
 import { depuisObjet, type ModeleProcessus } from '@/lib/modele'
 import type { DefinitionDetail, RapportTests, ResumeDefinition } from '@/lib/types'
@@ -133,6 +134,9 @@ import MessagesHelpers from '@/helpers/messages'
 
 const props = defineProps<{ id: string }>()
 const route = useRoute()
+const { equipe, qualifier, lien, lienProcessus, lienConcepteur } = useEquipe()
+/** Id complet (« equipe.processus ») : l'URL porte l'id du YAML. */
+const idComplet = qualifier(props.id)
 
 const detail = ref<DefinitionDetail | null>(null)
 const resume = ref<ResumeDefinition | null>(null)
@@ -162,9 +166,9 @@ const versionAffichee = computed(() => (route.query.version ? Number(route.query
 
 const charger = async (): Promise<void> => {
   try {
-    const [d, liste] = await Promise.all([api.definition(props.id, versionAffichee.value), api.definitions()])
+    const [d, liste] = await Promise.all([api.definition(idComplet, versionAffichee.value), api.definitions(equipe.value)])
     detail.value = d
-    resume.value = liste.find((x) => x.id === props.id) ?? null
+    resume.value = liste.find((x) => x.id === idComplet) ?? null
     modele.value = depuisObjet(d.definition)
   } catch (e) {
     erreur.value = (e as Error).message
@@ -185,7 +189,7 @@ const basculerActif = async (): Promise<void> => {
     )
     if (!ok) return
   }
-  await api.activer(props.id, actif)
+  await api.activer(idComplet, actif)
   MessagesHelpers.notifierSucces(actif ? 'Processus activé.' : 'Processus désactivé.')
   await charger()
 }

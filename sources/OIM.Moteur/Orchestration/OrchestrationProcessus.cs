@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using OIM.Moteur.Definitions;
 using OIM.Moteur.Expressions;
+using OIM.Moteur.Pilotage;
 
 namespace OIM.Moteur.Orchestration;
 
@@ -294,7 +295,9 @@ public sealed class OrchestrationProcessus(ILogger<OrchestrationProcessus> journ
 
             case CatalogueEtapes.SousProcessus:
             {
-                var processus = Texte(etape, "processus", ctx) ?? throw new ErreurProcessus("Processus enfant non précisé.");
+                // Le processus enfant est toujours celui de l'équipe du parent (id qualifié « equipe.processus »).
+                var processus = IdsEquipe.Qualifier(IdsEquipe.Equipe(_idStockage) ?? throw new ErreurProcessus("Équipe du processus inconnue."),
+                    Texte(etape, "processus", ctx) ?? throw new ErreurProcessus("Processus enfant non précisé."));
                 if (EnTest)
                     return new ResultatEtape(MockPour(etape.Id)
                         ?? throw new ErreurProcessus($"Mode test : un mock est requis pour le sous-processus « {etape.Id} » (sortie du processus enfant)."));

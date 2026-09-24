@@ -12,7 +12,7 @@ Ancienne version (moteur maison) : `../OAM/OAM` — référence métier seulemen
 sqllocaldb start OIM                      # instance dédiée : (localdb)\MSSQLLocalDB refuse les connexions (logon trigger)
 cd sources/OIM.Api; dotnet run            # http://localhost:5080, déploie ../../definitions au démarrage
 cd sources/OIM.Frontend; npm run dev      # http://localhost:5173 (proxy /api)
-dotnet test OIM.slnx                      # 63 tests; intégration sur (localdb)\OIM, base OIM_Tests
+dotnet test OIM.slnx                      # 69 tests; intégration sur (localdb)\OIM, base OIM_Tests
 ```
 
 - Arrêter l'API (`taskkill /F /IM OIM.Api.exe`) avant `dotnet build` : elle verrouille `OIM.Moteur.dll`.
@@ -30,7 +30,11 @@ dotnet test OIM.slnx                      # 63 tests; intégration sur (localdb)
 - `sources/OIM.Api` : minimal APIs (`EndpointsDefinitions`, `EndpointsInstances`).
 - `sources/OIM.Frontend` : `lib/modele.ts` (YAML ↔ modèle), `lib/graphe.ts` (liens dérivés du modèle + dagre),
   `lib/catalogue.ts` (types d'étapes côté UI — garder synchronisé avec `CatalogueEtapes.cs`).
-- `definitions/<processus>/` : paquet déployable (processus.yml, gabarits, `tests/*.yml`).
+- `definitions/<equipe>/<processus>/` : paquet déployable (processus.yml, gabarits, `tests/*.yml`).
+- `sources/OIM.Api/Securite/` : fournisseurs de jetons (un schéma JwtBearer par émetteur, choisi par `iss`),
+  émission du jeton interne (`/api/auth/jeton`, Windows), calcul des `Habilitations` par requête.
+- `base-de-donnees/` : script de création pour un DBA, généré par `Generer-ScriptBase.ps1` (à relancer si le
+  schéma `oim` ou le paquet DurableTask change).
 
 ## Règles importantes
 
@@ -46,8 +50,16 @@ dotnet test OIM.slnx                      # 63 tests; intégration sur (localdb)
 - **Connexions SQL partagées avec DurableTask** (même chaîne, même pool) : jamais de transaction `Serializable`
   (DurableTask exige READ COMMITTED pour `READPAST`); sérialiser avec `sp_getapplock` (voir `DepotDefinitionsSql`).
 - `TaskHubParApplication=true` : task hub = nom d'application (sinon l'utilisateur SQL), requis pour IIS multi-nœuds.
-- Brouillons de tests : id `~…`, instances `~test-…`, exclus du suivi (`Name NOT LIKE '~%'`) et purgés.
+- Brouillons de tests : id `~equipe.x~…`, instances `equipe.~test-…`, exclus du suivi (`Name NOT LIKE '~%'`) et purgés.
 - Activités « au moins une fois » : clé `Idempotency-Key` / `X-OIM-Cle` transmise aux services.
+
+- **Équipes et habilitations.** Toute méthode publique des services de pilotage reçoit `Habilitations`
+  (`Habilitations.Systeme` pour le moteur) et fait son contrôle d'abord; les endpoints n'ont aucune logique de
+  sécurité (paramètre `Habilitations` injecté). Ids qualifiés `equipe.x` (processus et instances, voir
+  `IdsEquipe`); le filtrage des instances se fait sur le préfixe d'`InstanceID`. Hors de portée → 404.
+  Seuls les *sujets* du jeton comptent : ne jamais lire un claim propre à un émetteur ailleurs que dans
+  `Fournisseurs.cs`.
+- Pas de migration du schéma `oim` : une base antérieure aux équipes est refusée au démarrage (à recréer).
 
 ## Conventions
 
@@ -63,3 +75,4 @@ dotnet test OIM.slnx                      # 63 tests; intégration sur (localdb)
 - Lire le format Markdown des cas de test d'OAM (`workflows/tests.*.md`).
 - Limiter le contexte tracé par `oim.reponse` aux seules valeurs utilisées (données personnelles, volume).
 - Base SQL pour les tests d'intégration en CI (sinon « non concluants »).
+- Fournisseur `Externe` par autorité OIDC (Entra ID) : configuré et prévu, validé seulement avec une clé HS256.

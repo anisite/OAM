@@ -1,13 +1,16 @@
 import { enteteAutorisation } from './auth'
 import type {
   DefinitionDetail,
+  EquipeDetail,
   EvenementHistorique,
   InstanceDetail,
+  Moi,
   PageInstances,
   ReponseDeploiement,
   RapportTests,
   ReponseValidation,
   ResumeDefinition,
+  ResumeEquipe,
   Statistiques
 } from './types'
 
@@ -64,8 +67,9 @@ function qs(params: Record<string, unknown>): string {
 
 export const api = {
   // Suivi
-  tableauDeBord: () => appel<Statistiques>('GET', '/tableau-de-bord'),
+  tableauDeBord: (equipe: string) => appel<Statistiques>('GET', `/tableau-de-bord${qs({ equipe })}`),
   instances: (filtre: {
+    equipe: string
     statut?: string
     processus?: string
     recherche?: string
@@ -92,25 +96,36 @@ export const api = {
   purger: (id: string) => appel<void>('DELETE', `/instances/${enc(id)}`),
 
   // Définitions
-  definitions: () => appel<ResumeDefinition[]>('GET', '/definitions'),
+  definitions: (equipe: string) => appel<ResumeDefinition[]>('GET', `/definitions${qs({ equipe })}`),
   definition: (id: string, version?: number) =>
     appel<DefinitionDetail>('GET', `/definitions/${enc(id)}${qs({ version })}`),
   valider: (yaml: string, fichiers: Record<string, string>) =>
     appel<ReponseValidation>('POST', '/definitions/valider', { yaml, fichiers }),
-  deployer: (yaml: string, fichiers: Record<string, string>, commentaire?: string, ignorerTests = false) =>
-    appel<ReponseDeploiement>('POST', `/definitions${qs({ ignorerTests })}`, { yaml, fichiers, commentaire }),
+  deployer: (equipe: string, yaml: string, fichiers: Record<string, string>, commentaire?: string, ignorerTests = false) =>
+    appel<ReponseDeploiement>('POST', `/definitions${qs({ equipe, ignorerTests })}`, { yaml, fichiers, commentaire }),
   /** Tests métier d'un paquet non déployé (concepteur). */
-  testerPaquet: (yaml: string, fichiers: Record<string, string>, options: { cas?: string; conserver?: boolean } = {}) =>
-    appel<RapportTests>('POST', `/definitions/tests${qs(options)}`, { yaml, fichiers }),
+  testerPaquet: (equipe: string, yaml: string, fichiers: Record<string, string>, options: { cas?: string; conserver?: boolean } = {}) =>
+    appel<RapportTests>('POST', `/definitions/tests${qs({ equipe, ...options })}`, { yaml, fichiers }),
   /** Tests métier d'une version déployée. */
   tester: (id: string, options: { version?: number; cas?: string; conserver?: boolean } = {}) =>
     appel<RapportTests>('POST', `/definitions/${enc(id)}/tests${qs(options)}`),
-  deployerZip: (fichier: File, commentaire?: string) => {
+  deployerZip: (equipe: string, fichier: File, commentaire?: string) => {
     const f = new FormData()
     f.append('fichier', fichier)
-    return appel<ReponseDeploiement>('POST', `/definitions/zip${qs({ commentaire })}`, f)
+    return appel<ReponseDeploiement>('POST', `/definitions/zip${qs({ equipe, commentaire })}`, f)
   },
   activer: (id: string, actif: boolean) => appel<void>('PUT', `/definitions/${enc(id)}/actif`, { actif }),
+  // Équipes
+  moi: () => appel<Moi>('GET', '/moi'),
+  equipes: () => appel<ResumeEquipe[]>('GET', '/equipes'),
+  equipe: (id: string) => appel<EquipeDetail>('GET', `/equipes/${enc(id)}`),
+  creerEquipe: (e: { id: string; nom: string; description?: string; membres?: string[] }) =>
+    appel<EquipeDetail>('POST', '/equipes', e),
+  modifierEquipe: (id: string, e: { nom: string; description?: string; actif: boolean }) =>
+    appel<void>('PUT', `/equipes/${enc(id)}`, e),
+  definirMembres: (id: string, sujets: string[]) => appel<void>('PUT', `/equipes/${enc(id)}/membres`, { sujets }),
+  supprimerEquipe: (id: string) => appel<void>('DELETE', `/equipes/${enc(id)}`),
+
   /** Téléchargement du paquet : un lien simple ne transmettrait pas le jeton. */
   telechargerZip: async (id: string, version?: number) => {
     const reponse = await envoyer('GET', `/definitions/${enc(id)}/zip${qs({ version })}`)

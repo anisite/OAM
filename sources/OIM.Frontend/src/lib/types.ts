@@ -85,6 +85,7 @@ export interface Statistiques {
 
 export interface ResumeDefinition {
   id: string
+  equipe: string
   nom?: string
   description?: string
   versionCourante: number
@@ -104,6 +105,7 @@ export interface ResumeVersion {
 
 export interface DefinitionDetail {
   id: string
+  equipe: string
   version: number
   yaml: string
   fichiers: { chemin: string; contenu: string }[]
@@ -153,4 +155,28 @@ export interface RapportTests {
   reussis: number
   echoues: number
   reussi: boolean
+}
+
+export interface Moi {
+  utilisateur: string
+  admin: boolean
+  support: boolean
+  equipes: string[]
+}
+
+export interface ResumeEquipe {
+  id: string
+  nom: string
+  description?: string
+  actif: boolean
+  compteurs: { actives: number; echecs: number; enAttente: number }
+}
+
+export interface EquipeDetail {
+  id: string
+  nom: string
+  description?: string
+  actif: boolean
+  creeLe: string
+  membres: string[]
 }

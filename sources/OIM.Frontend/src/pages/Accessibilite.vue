@@ -9,3 +9,9 @@
     </p>
   </div>
 </template>
+
+<script setup lang="ts">
+import { useFilAriane } from '@/lib/filAriane'
+
+useFilAriane(() => [{ libelle: 'Accueil', lien: '/' }, { libelle: 'Accessibilité' }])
+</script>

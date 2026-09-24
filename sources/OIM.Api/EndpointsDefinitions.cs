@@ -24,7 +24,7 @@ public static class EndpointsDefinitions
     {
         var g = api.MapGroup("/definitions").WithTags("Définitions");
 
-        g.MapGet("/", (ServiceDefinitions s, CancellationToken ct) => s.ListerAsync(ct));
+        g.MapGet("/", (string? equipe, Habilitations h, ServiceDefinitions s, CancellationToken ct) => s.ListerAsync(h, equipe, ct));
 
         g.MapPost("/valider", (PaquetRequete r, ServiceDefinitions s) =>
         {
@@ -32,36 +32,40 @@ public static class EndpointsDefinitions
             return new ReponseValidation(v.Valide, v.Diagnostics, v.Brut);
         });
 
-        // Déploiement : les tests métier du paquet (tests/*.yml) sont exécutés avant; en mode bloquant,
-        // un échec refuse la version (422), sauf ?ignorerTests=true.
-        g.MapPost("/", async (PaquetRequete r, bool? ignorerTests, ServiceDefinitions s, HttpContext http, CancellationToken ct) =>
-            Deploiement(await s.DeployerAsync(new PaquetDefinition(r.Yaml, r.Fichiers), http.User.Utilisateur(), r.Commentaire, ct,
+        // Déploiement dans une équipe (?equipe=, facultatif si l'appelant n'en a qu'une) : les tests métier du
+        // paquet (tests/*.yml) sont exécutés avant; en mode bloquant, un échec refuse la version (422), sauf ?ignorerTests=true.
+        g.MapPost("/", async (PaquetRequete r, string? equipe, bool? ignorerTests, Habilitations h, ServiceDefinitions s, CancellationToken ct) =>
+            Deploiement(await s.DeployerAsync(h, h.EquipeCible(equipe), new PaquetDefinition(r.Yaml, r.Fichiers), r.Commentaire, ct,
                 ignorerTests: ignorerTests ?? false)));
 
         // Déploiement d'une archive zip (YAML du processus + gabarits + tests), ex. depuis un pipeline.
-        g.MapPost("/zip", async (IFormFile fichier, string? commentaire, bool? ignorerTests, ServiceDefinitions s, HttpContext http, CancellationToken ct) =>
+        g.MapPost("/zip", async (IFormFile fichier, string? equipe, string? commentaire, bool? ignorerTests, Habilitations h, ServiceDefinitions s,
+            CancellationToken ct) =>
         {
             await using var flux = fichier.OpenReadStream();
             var paquet = PaquetDefinition.DepuisZip(flux);
-            return Deploiement(await s.DeployerAsync(paquet, http.User.Utilisateur(), commentaire ?? fichier.FileName, ct,
+            return Deploiement(await s.DeployerAsync(h, h.EquipeCible(equipe), paquet, commentaire ?? fichier.FileName, ct,
                 ignorerTests: ignorerTests ?? false));
         }).DisableAntiforgery();
 
         // Tests métier d'un paquet non déployé (concepteur, CI) — rien n'est enregistré.
-        g.MapPost("/tests", async (PaquetRequete r, string? cas, bool? conserver, ServiceDefinitions s, CancellationToken ct) =>
-            await s.TesterAsync(new PaquetDefinition(r.Yaml, r.Fichiers), cas, conserver ?? false, ct));
+        g.MapPost("/tests", async (PaquetRequete r, string? equipe, string? cas, bool? conserver, Habilitations h, ServiceDefinitions s,
+                CancellationToken ct) =>
+            await s.TesterAsync(h, h.EquipeCible(equipe), new PaquetDefinition(r.Yaml, r.Fichiers), cas, conserver ?? false, ct));
 
         // Tests métier d'une version déployée (courante par défaut).
-        g.MapPost("/{id}/tests", async (string id, int? version, string? cas, bool? conserver, ServiceDefinitions s, CancellationToken ct) =>
-            await s.TesterAsync(id, version, cas, conserver ?? false, ct));
+        g.MapPost("/{id}/tests", async (string id, int? version, string? cas, bool? conserver, Habilitations h, ServiceDefinitions s,
+                CancellationToken ct) =>
+            await s.TesterAsync(h, id, version, cas, conserver ?? false, ct));
 
-        g.MapGet("/{id}", async (string id, int? version, ServiceDefinitions s, CancellationToken ct) =>
+        g.MapGet("/{id}", async (string id, int? version, Habilitations h, ServiceDefinitions s, CancellationToken ct) =>
         {
-            var v = await s.ObtenirAsync(id, version, ct);
+            var v = await s.ObtenirAsync(h, id, version, ct);
             var lecture = LecteurDefinition.Lire(v.Yaml);
             return new
             {
                 id = v.DefinitionId,
+                equipe = IdsEquipe.Equipe(v.DefinitionId),
                 v.Version,
                 v.Yaml,
                 fichiers = v.Fichiers.OrderBy(f => f.Key).Select(f => new FichierDefinition(f.Key, f.Value)),
@@ -70,19 +74,19 @@ public static class EndpointsDefinitions
                 v.DeployeLe,
                 v.Commentaire,
                 definition = lecture.Brut,
-                versions = await s.VersionsAsync(id, ct)
+                versions = await s.VersionsAsync(h, id, ct)
             };
         });
 
-        g.MapGet("/{id}/zip", async (string id, int? version, ServiceDefinitions s, CancellationToken ct) =>
+        g.MapGet("/{id}/zip", async (string id, int? version, Habilitations h, ServiceDefinitions s, CancellationToken ct) =>
         {
-            var v = await s.ObtenirAsync(id, version, ct);
-            return Results.File(v.Paquet().VersZip("processus.yml"), "application/zip", $"{id}-v{v.Version}.zip");
+            var v = await s.ObtenirAsync(h, id, version, ct);
+            return Results.File(v.Paquet().VersZip("processus.yml"), "application/zip", $"{IdsEquipe.Local(id)}-v{v.Version}.zip");
         });
 
-        g.MapPut("/{id}/actif", async (string id, Activation a, ServiceDefinitions s, CancellationToken ct) =>
+        g.MapPut("/{id}/actif", async (string id, Activation a, Habilitations h, ServiceDefinitions s, CancellationToken ct) =>
         {
-            await s.DefinirActifAsync(id, a.Actif, ct);
+            await s.DefinirActifAsync(h, id, a.Actif, ct);
             return Results.NoContent();
         });
 

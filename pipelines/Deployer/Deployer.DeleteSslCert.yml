@@ -1,0 +1,31 @@
+# Équivalent YAML du groupe de tâches « Deployer.DeleteSslCert » : supprime la liaison du certificat SSL
+# d'un nom d'hôte (netsh http delete sslcert), avant que la gestion IIS la recrée.
+
+parameters:
+  - name: hostNameAndPort       # GED.HostNameAndPort (ex. $(OIM.DNS):443)
+    type: string
+
+steps:
+  - task: PowerShell@2
+    displayName: 'Supprimer le certificat SSL sur ${{ parameters.hostNameAndPort }}'
+    inputs:
+      targetType: 'inline'
+      errorActionPreference: 'stop'
+      script: |
+        $hostNameAndPort = "${{ parameters.hostNameAndPort }}"
+        Write-Host "Vérification du certificat SSL pour $hostNameAndPort"
+        try {
+            $result = & netsh http delete sslcert hostnameport="$hostNameAndPort" 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Le certificat SSL pour $hostNameAndPort a été supprimé."
+            }
+            else {
+                Write-Host "La commande a retourné un code inattendu : $LASTEXITCODE"
+                Write-Host $result
+                exit 0
+            }
+        }
+        catch {
+            Write-Host "Une erreur est survenue lors de la suppression du certificat SSL."
+            Write-Host $_.Exception.Message
+        }

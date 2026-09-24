@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p class="mb-8"><router-link to="/instances">← Retour aux instances</router-link></p>
+    <p class="mb-8"><router-link :to="lien('/instances')">← Retour aux instances</router-link></p>
 
     <utd-avis v-if="erreurChargement" type="erreur" titre="Instance introuvable.">
       <p>{{ erreurChargement }}</p>
@@ -10,16 +10,16 @@
       <div class="entete-page">
         <div>
           <div class="entete-page-titre">
-            <h1 class="texte-mono">{{ instance.instanceId }}</h1>
+            <h1 class="texte-mono">{{ idLocal(instance.instanceId) }}</h1>
             <PastilleStatut :statut="instance.statut" />
           </div>
           <p class="sous-titre">
             Processus
-            <router-link :to="`/processus/${encodeURIComponent(instance.processus)}`" class="texte-mono">{{ instance.processus }}</router-link>
+            <router-link :to="lienProcessus(instance.processus)" class="texte-mono">{{ idLocal(instance.processus) }}</router-link>
             v{{ instance.version }}
             <template v-if="instance.parentInstanceId">
               · sous-processus de
-              <router-link :to="`/instances/${encodeURIComponent(instance.parentInstanceId)}`" class="texte-mono">{{ instance.parentInstanceId }}</router-link>
+              <router-link :to="lienInstance(instance.parentInstanceId)" class="texte-mono">{{ idLocal(instance.parentInstanceId) }}</router-link>
             </template>
           </p>
         </div>
@@ -136,6 +136,7 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/lib/api'
+import { idLocal, useEquipe } from '@/lib/equipe'
 import { dateHeure, duree, json, relatif, STATUTS_ACTIFS } from '@/lib/format'
 import { depuisObjet, type ModeleProcessus } from '@/lib/modele'
 import type { EvenementHistorique, InstanceDetail } from '@/lib/types'
@@ -148,6 +149,9 @@ import MessagesHelpers from '@/helpers/messages'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const { qualifier, lien, lienProcessus, lienInstance } = useEquipe()
+/** Id complet (« equipe.id ») : l'URL porte la partie propre à l'équipe. */
+const idComplet = qualifier(props.id)
 
 const instance = ref<InstanceDetail | null>(null)
 const historique = ref<EvenementHistorique[]>([])
@@ -161,7 +165,7 @@ const actif = computed(() => !!instance.value && STATUTS_ACTIFS.includes(instanc
 
 const { automatique, chargement, derniereMaj, actualiser } = useRafraichissement(async () => {
   try {
-    const [i, h] = await Promise.all([api.instance(props.id), api.historique(props.id)])
+    const [i, h] = await Promise.all([api.instance(idComplet), api.historique(idComplet)])
     instance.value = i
     historique.value = h
     erreurChargement.value = ''
@@ -225,7 +229,7 @@ const commande = async (c: 'terminer' | 'suspendre' | 'reprendre' | 'relancer'):
     if (!ok) return
   }
   try {
-    await api.commande(props.id, c)
+    await api.commande(idComplet, c)
     MessagesHelpers.notifierSucces('Commande transmise.')
     automatique.value = true
     setTimeout(actualiser, 800)
@@ -236,9 +240,9 @@ const commande = async (c: 'terminer' | 'suspendre' | 'reprendre' | 'relancer'):
 
 const redemarrer = async (): Promise<void> => {
   try {
-    const r = await api.redemarrer(props.id, false)
+    const r = await api.redemarrer(idComplet, false)
     MessagesHelpers.notifierSucces(`Nouvelle instance « ${r.instanceId} » démarrée.`)
-    router.push(`/instances/${encodeURIComponent(r.instanceId)}`)
+    router.push(lienInstance(r.instanceId))
   } catch (e) {
     MessagesHelpers.afficherErreurTechnique(`<p>${(e as Error).message}</p>`, 'Redémarrage impossible')
   }
@@ -248,9 +252,9 @@ const purger = async (): Promise<void> => {
   const ok = await MessagesHelpers.confirmer('<p>L’instance et tout son historique seront supprimés.</p>', 'Supprimer l’instance', 'Supprimer')
   if (!ok) return
   try {
-    await api.purger(props.id)
+    await api.purger(idComplet)
     MessagesHelpers.notifierSucces('Instance supprimée.')
-    router.push('/instances')
+    router.push(lien('/instances'))
   } catch (e) {
     MessagesHelpers.afficherErreurTechnique(`<p>${(e as Error).message}</p>`)
   }

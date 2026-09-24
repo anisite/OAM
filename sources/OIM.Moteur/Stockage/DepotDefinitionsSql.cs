@@ -3,6 +3,7 @@ using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using OIM.Moteur.Definitions;
+using OIM.Moteur.Pilotage;
 
 namespace OIM.Moteur.Stockage;
 
@@ -39,10 +40,15 @@ public sealed class DepotDefinitionsSql(ConnexionSql connexion) : IDepotDefiniti
             throw new TimeoutException($"Verrou « {ressource} » non obtenu (code {p.Get<int>("retour")}).");
     }
 
-    public async Task<ResultatDeploiement> DeployerAsync(DefinitionProcessus definition, PaquetDefinition paquet,
+    public async Task<ResultatDeploiement> DeployerAsync(string equipe, DefinitionProcessus definition, PaquetDefinition paquet,
         string? deployePar, string? commentaire, CancellationToken ct = default)
     {
         var empreinte = paquet.Empreinte();
+        var id = IdsEquipe.Qualifier(equipe, definition.Id);
+        if (id.Length > 160)
+            throw new InvalidDataException($"Identifiant « {id} » trop long (160 caractères au plus, équipe comprise).");
+        if (paquet.Fichiers.Keys.FirstOrDefault(c => c.Length > 360) is { } chemin)
+            throw new InvalidDataException($"Chemin de fichier trop long (360 caractères au plus) : {chemin}");
 
         await using var cn = await connexion.OuvrirAsync(ct);
         // ReadCommitted + UPDLOCK/HOLDLOCK : ne jamais laisser un niveau Serializable sur une connexion
@@ -50,54 +56,54 @@ public sealed class DepotDefinitionsSql(ConnexionSql connexion) : IDepotDefiniti
         await using var tx = (SqlTransaction)await cn.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         // Deux déploiements simultanés du même processus (ex. deux serveurs au démarrage) :
         // le second attend le premier, puis constate que le contenu est identique.
-        await VerrouAsync(cn, tx, $"oim:deploiement:{definition.Id}", ct);
+        await VerrouAsync(cn, tx, $"oim:deploiement:{id}", ct);
 
         var courante = await cn.QuerySingleOrDefaultAsync<LigneCourante>(new CommandDefinition("""
             SELECT d.VersionCourante AS Version, v.Empreinte
             FROM oim.Definitions d WITH (UPDLOCK, HOLDLOCK)
             JOIN oim.DefinitionVersions v ON v.DefinitionId = d.Id AND v.Version = d.VersionCourante
             WHERE d.Id = @Id
-            """, new { definition.Id }, tx, cancellationToken: ct));
+            """, new { Id = id }, tx, cancellationToken: ct));
 
         if (courante is { } c && c.Empreinte.Trim() == empreinte)
         {
             // Contenu identique : on réactive simplement la définition au besoin.
             await cn.ExecuteAsync(new CommandDefinition(
-                "UPDATE oim.Definitions SET Actif = 1 WHERE Id = @Id AND Actif = 0", new { definition.Id }, tx, cancellationToken: ct));
+                "UPDATE oim.Definitions SET Actif = 1 WHERE Id = @Id AND Actif = 0", new { Id = id }, tx, cancellationToken: ct));
             await tx.CommitAsync(ct);
-            return new ResultatDeploiement(definition.Id, c.Version, false);
+            return new ResultatDeploiement(id, c.Version, false);
         }
 
         var version = await cn.ExecuteScalarAsync<int>(new CommandDefinition(
             "SELECT ISNULL(MAX(Version), 0) + 1 FROM oim.DefinitionVersions WHERE DefinitionId = @Id",
-            new { definition.Id }, tx, cancellationToken: ct));
+            new { Id = id }, tx, cancellationToken: ct));
 
         if (courante is null)
             await cn.ExecuteAsync(new CommandDefinition("""
                 IF NOT EXISTS (SELECT 1 FROM oim.Definitions WHERE Id = @Id)
-                    INSERT oim.Definitions (Id, Nom, Description, VersionCourante) VALUES (@Id, @Nom, @Description, 0)
-                """, new { definition.Id, definition.Nom, definition.Description }, tx, cancellationToken: ct));
+                    INSERT oim.Definitions (Id, Equipe, Nom, Description, VersionCourante) VALUES (@Id, @Equipe, @Nom, @Description, 0)
+                """, new { Id = id, Equipe = equipe, definition.Nom, definition.Description }, tx, cancellationToken: ct));
 
         await cn.ExecuteAsync(new CommandDefinition("""
             INSERT oim.DefinitionVersions (DefinitionId, Version, Yaml, Empreinte, DeployePar, Commentaire)
             VALUES (@Id, @Version, @Yaml, @Empreinte, @DeployePar, @Commentaire)
-            """, new { definition.Id, Version = version, paquet.Yaml, Empreinte = empreinte, DeployePar = deployePar, Commentaire = commentaire },
+            """, new { Id = id, Version = version, paquet.Yaml, Empreinte = empreinte, DeployePar = deployePar, Commentaire = commentaire },
             tx, cancellationToken: ct));
 
         if (paquet.Fichiers.Count > 0)
             await cn.ExecuteAsync(new CommandDefinition("""
                 INSERT oim.DefinitionFichiers (DefinitionId, Version, Chemin, Contenu) VALUES (@Id, @Version, @Chemin, @Contenu)
-                """, paquet.Fichiers.Select(f => new { definition.Id, Version = version, Chemin = f.Key, Contenu = f.Value }),
+                """, paquet.Fichiers.Select(f => new { Id = id, Version = version, Chemin = f.Key, Contenu = f.Value }),
                 tx, cancellationToken: ct));
 
         await cn.ExecuteAsync(new CommandDefinition("""
             UPDATE oim.Definitions
             SET VersionCourante = @Version, Nom = @Nom, Description = @Description, Actif = 1, ModifieLe = SYSUTCDATETIME()
             WHERE Id = @Id
-            """, new { definition.Id, Version = version, definition.Nom, definition.Description }, tx, cancellationToken: ct));
+            """, new { Id = id, Version = version, definition.Nom, definition.Description }, tx, cancellationToken: ct));
 
         await tx.CommitAsync(ct);
-        return new ResultatDeploiement(definition.Id, version, true);
+        return new ResultatDeploiement(id, version, true);
     }
 
     public async Task<VersionDefinition?> ObtenirAsync(string id, int? version = null, CancellationToken ct = default)
@@ -126,16 +132,18 @@ public sealed class DepotDefinitionsSql(ConnexionSql connexion) : IDepotDefiniti
         return resultat;
     }
 
-    public async Task<IReadOnlyList<ResumeDefinition>> ListerAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<ResumeDefinition>> ListerAsync(IReadOnlyCollection<string>? equipes, CancellationToken ct = default)
     {
+        if (equipes is { Count: 0 }) return [];
         await using var cn = await connexion.OuvrirAsync(ct);
-        var lignes = await cn.QueryAsync<ResumeDefinition>(new CommandDefinition("""
-            SELECT d.Id, d.Nom, d.Description, d.VersionCourante, d.Actif, d.ModifieLe,
+        var lignes = await cn.QueryAsync<ResumeDefinition>(new CommandDefinition($"""
+            SELECT d.Id, d.Equipe, d.Nom, d.Description, d.VersionCourante, d.Actif, d.ModifieLe,
                    v.DeployePar, (SELECT COUNT(*) FROM oim.DefinitionVersions x WHERE x.DefinitionId = d.Id) AS NbVersions
             FROM oim.Definitions d
             JOIN oim.DefinitionVersions v ON v.DefinitionId = d.Id AND v.Version = d.VersionCourante
+            {(equipes is null ? "" : "WHERE d.Equipe IN @equipes")}
             ORDER BY d.Id
-            """, cancellationToken: ct));
+            """, new { equipes }, cancellationToken: ct));
         return lignes.Select(l => l with { ModifieLe = DateTime.SpecifyKind(l.ModifieLe, DateTimeKind.Utc) }).ToList();
     }
 

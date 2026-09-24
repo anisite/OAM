@@ -1,0 +1,33 @@
+# Équivalent YAML du groupe de tâches « Deployer.RemettreOnline » : supprime offline.htm de drain.local,
+# ce qui remet le serveur dans l'équilibreur de charge.
+
+parameters:
+  - name: cheminDrainLocal      # CheminDrainLocal (avec la barre oblique finale)
+    type: string
+    default: 'C:\inetpub\wwwroot\drain.local\'
+  - name: nomFichierOffline     # NomFichierOffline
+    type: string
+    default: 'offline.htm'
+
+steps:
+  - task: PowerShell@2
+    displayName: 'Remettre online ${{ parameters.cheminDrainLocal }}'
+    inputs:
+      targetType: 'inline'
+      errorActionPreference: 'stop'
+      script: |
+        if (Test-Path "${{ parameters.cheminDrainLocal }}${{ parameters.nomFichierOffline }}")
+        {
+          try {
+            Remove-Item -Path "${{ parameters.cheminDrainLocal }}${{ parameters.nomFichierOffline }}"
+            Write-Host "Fichier « ${{ parameters.cheminDrainLocal }}${{ parameters.nomFichierOffline }} » supprimé, le serveur est online."
+          }
+          catch {
+            Write-Host "Erreur lors de la suppression du fichier « ${{ parameters.cheminDrainLocal }}${{ parameters.nomFichierOffline }} »!"
+            exit 1
+          }
+        }
+        else
+        {
+          Write-Host "Le fichier « ${{ parameters.cheminDrainLocal }}${{ parameters.nomFichierOffline }} » n'existe pas, le serveur devrait déjà être online."
+        }

@@ -65,10 +65,10 @@
         <tbody>
           <tr v-for="i in page?.elements ?? []" :key="i.instanceId" @click="ouvrir(i.instanceId)">
             <td>
-              <router-link :to="lien(i.instanceId)" class="texte-mono" @click.stop>{{ i.instanceId }}</router-link>
+              <router-link :to="lienInstance(i.instanceId)" class="texte-mono" @click.stop>{{ idLocal(i.instanceId) }}</router-link>
               <div v-if="i.parentInstanceId" class="texte-attenue">sous-processus</div>
             </td>
-            <td class="texte-mono">{{ i.processus }} <span class="texte-attenue">v{{ i.version }}</span></td>
+            <td class="texte-mono">{{ idLocal(i.processus) }} <span class="texte-attenue">v{{ i.version }}</span></td>
             <td><PastilleStatut :statut="i.statut" /></td>
             <td>
               <div>{{ i.statutMetier ?? '—' }}</div>
@@ -100,6 +100,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/lib/api'
+import { idLocal, useEquipe } from '@/lib/equipe'
 import { dateHeure, duree, relatif } from '@/lib/format'
 import type { PageInstances, ResumeDefinition } from '@/lib/types'
 import { useRafraichissement } from '@/lib/rafraichissement'
@@ -108,6 +109,7 @@ import BarreRafraichissement from '@/components/BarreRafraichissement.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { equipe, lienInstance } = useEquipe()
 
 const q = route.query
 const filtre = reactive({
@@ -123,11 +125,11 @@ const definitions = ref<ResumeDefinition[]>([])
 const nbPages = computed(() => (page.value ? Math.max(1, Math.ceil(page.value.total / page.value.taille)) : 1))
 
 const { automatique, chargement, derniereMaj, actualiser } = useRafraichissement(async () => {
-  page.value = await api.instances({ ...filtre, page: numeroPage.value, taille: 25 })
+  page.value = await api.instances({ ...filtre, equipe: equipe.value, page: numeroPage.value, taille: 25 })
 })
 
 onMounted(async () => {
-  definitions.value = await api.definitions().catch(() => [])
+  definitions.value = await api.definitions(equipe.value).catch(() => [])
 })
 
 const synchroniserUrl = (): void => {
@@ -154,8 +156,7 @@ const allerPage = (n: number): void => {
   actualiser()
 }
 
-const lien = (id: string): string => `/instances/${encodeURIComponent(id)}`
 const ouvrir = (id: string): void => {
-  router.push(lien(id))
+  router.push(lienInstance(id))
 }
 </script>

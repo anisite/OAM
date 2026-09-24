@@ -4,7 +4,7 @@
       <div>
         <h1>Concepteur de processus</h1>
         <p class="sous-titre">
-          <template v-if="idCharge">Modification de <span class="texte-mono">{{ idCharge }}</span> (déployée : v{{ versionChargee }})</template>
+          <template v-if="idCharge">Modification de <span class="texte-mono">{{ idLocal(idCharge) }}</span> (déployée : v{{ versionChargee }})</template>
           <template v-else>Nouveau processus</template>
         </p>
       </div>
@@ -164,6 +164,7 @@ import EditeurFichiers from '@/components/concepteur/EditeurFichiers.vue'
 import Dialogue from '@/components/Dialogue.vue'
 import RapportTestsVue from '@/components/RapportTests.vue'
 import { api, ErreurApi } from '@/lib/api'
+import { idLocal, useEquipe } from '@/lib/equipe'
 import { typeEtape, type TypeChamp } from '@/lib/catalogue'
 import { aretes, disposer, type Poignee } from '@/lib/graphe'
 import {
@@ -184,6 +185,8 @@ import MessagesHelpers from '@/helpers/messages'
 
 const props = defineProps<{ id?: string }>()
 const router = useRouter()
+// Le processus est chargé et déployé dans l'équipe de l'URL; props.id est l'id du YAML.
+const { equipe, qualifier, lienConcepteur } = useEquipe()
 
 const ID_FLUX = 'concepteur'
 const { screenToFlowCoordinate, fitView } = useVueFlow(ID_FLUX)
@@ -217,10 +220,11 @@ const remplacer = (m: ModeleProcessus, f: Record<string, string>): void => {
 }
 
 onMounted(async () => {
-  api.definitions().then((l) => (processusDisponibles.value = l.map((d) => d.id))).catch(() => undefined)
+  // Sous-processus : toujours dans la même équipe, désignés par l'id du YAML.
+  api.definitions(equipe.value).then((l) => (processusDisponibles.value = l.map((d) => idLocal(d.id)))).catch(() => undefined)
   if (props.id) {
     try {
-      const d = await api.definition(props.id)
+      const d = await api.definition(qualifier(props.id))
       idCharge.value = d.id
       versionChargee.value = d.version
       remplacer(depuisYaml(d.yaml), Object.fromEntries(d.fichiers.map((f) => [f.chemin, f.contenu])))
@@ -233,7 +237,7 @@ onMounted(async () => {
 const nouveau = async (): Promise<void> => {
   if (modele.etapes.length && !(await MessagesHelpers.confirmer('<p>Les modifications non déployées seront perdues.</p>', 'Nouveau processus', 'Continuer'))) return
   idCharge.value = null
-  router.replace('/concepteur')
+  router.replace(lienConcepteur())
   remplacer(modeleVide(), {})
 }
 
@@ -490,7 +494,7 @@ const executerTests = async (): Promise<void> => {
   testsEnCours.value = true
   try {
     refusParTests.value = false
-    rapportTests.value = await api.testerPaquet(yamlCourant.value, { ...fichiers })
+    rapportTests.value = await api.testerPaquet(equipe.value, yamlCourant.value, { ...fichiers })
   } catch (e) {
     MessagesHelpers.afficherErreurTechnique(`<p>${(e as Error).message}</p>`, 'Exécution des tests impossible')
   } finally {
@@ -506,7 +510,7 @@ const deployerMalgreTests = async (): Promise<void> => {
 const confirmerDeploiement = async (ignorerTests = false): Promise<void> => {
   deploiement.value = true
   try {
-    const r = await api.deployer(yamlCourant.value, { ...fichiers }, commentaire.value || undefined, ignorerTests)
+    const r = await api.deployer(equipe.value, yamlCourant.value, { ...fichiers }, commentaire.value || undefined, ignorerTests)
     modaleDeployer.value = false
     rapportTests.value = null
     refusParTests.value = false
@@ -514,10 +518,10 @@ const confirmerDeploiement = async (ignorerTests = false): Promise<void> => {
     versionChargee.value = r.version
     const tests = r.tests ? ` Tests métier : ${r.tests.reussis}/${r.tests.cas.length} réussi(s).` : ''
     MessagesHelpers.notifierSucces(
-      (r.nouvelleVersion ? `« ${r.id} » v${r.version} est déployé et prêt à recevoir des instances.` : `Aucun changement : « ${r.id} » reste en v${r.version}.`) + tests,
+      (r.nouvelleVersion ? `« ${idLocal(r.id)} » v${r.version} est déployé et prêt à recevoir des instances.` : `Aucun changement : « ${idLocal(r.id)} » reste en v${r.version}.`) + tests,
       'Déploiement'
     )
-    router.replace(`/concepteur/${encodeURIComponent(r.id)}`)
+    router.replace(lienConcepteur(r.id))
   } catch (e) {
     if (e instanceof ErreurApi && e.statut === 422 && e.corps?.tests) {
       modaleDeployer.value = false

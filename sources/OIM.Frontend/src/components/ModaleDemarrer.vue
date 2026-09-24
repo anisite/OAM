@@ -1,5 +1,5 @@
 <template>
-  <Dialogue id="dialogueDemarrer" :titre="`Démarrer « ${processus} »`" :visible="visible" @update:visible="$emit('update:visible', $event)">
+  <Dialogue id="dialogueDemarrer" :titre="`Démarrer « ${idLocal(processus)} »`" :visible="visible" @update:visible="$emit('update:visible', $event)">
     <utd-avis v-if="erreurs.length" type="erreur" titre="Les entrées sont invalides.">
       <ul>
         <li v-for="e in erreurs" :key="e">{{ e }}</li>
@@ -48,12 +48,14 @@ import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Dialogue from './Dialogue.vue'
 import { api, ErreurApi } from '@/lib/api'
+import { idLocal, useEquipe } from '@/lib/equipe'
 import type { EntreeModele } from '@/lib/modele'
 import MessagesHelpers from '@/helpers/messages'
 
 const props = defineProps<{ visible: boolean; processus: string; version?: number; entrees: EntreeModele[] }>()
 const emit = defineEmits<{ (e: 'update:visible', v: boolean): void }>()
 const router = useRouter()
+const { lienInstance } = useEquipe()
 
 const valeurs = ref<Record<string, string>>({})
 const instanceId = ref('')
@@ -80,9 +82,9 @@ const demarrer = async (): Promise<void> => {
     const corps: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(valeurs.value)) if (v !== '') corps[k] = v
     const r = await api.demarrer(props.processus, corps, { version: props.version, instanceId: instanceId.value || undefined })
-    MessagesHelpers.notifierSucces(`Instance « ${r.instanceId} » démarrée (v${r.version}).`)
+    MessagesHelpers.notifierSucces(`Instance « ${idLocal(r.instanceId)} » démarrée (v${r.version}).`)
     emit('update:visible', false)
-    router.push(`/instances/${encodeURIComponent(r.instanceId)}`)
+    router.push(lienInstance(r.instanceId))
   } catch (e) {
     if (e instanceof ErreurApi && e.details.length) erreurs.value = e.details
     else erreurs.value = [(e as Error).message]

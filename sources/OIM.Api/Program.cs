@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Diagnostics;
 using OIM.Api;
+using OIM.Api.Securite;
 using OIM.Moteur.Hebergement;
 using OIM.Moteur.Pilotage;
+using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,12 +24,28 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
 });
 builder.Services.AddProblemDetails();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(o => o.AddDocumentTransformer((document, _, _) =>
+{
+    // Jeton Bearer : saisi une fois dans Scalar, joint à toutes les requêtes.
+    document.Components ??= new OpenApiComponents();
+    document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+    document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Jeton de GET /api/auth/jeton (authentification Windows) ou d'un autre fournisseur configuré."
+    };
+    document.Security ??= [];
+    document.Security.Add(new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", document)] = [] });
+    return Task.CompletedTask;
+}));
 
-// Sécurité : jeton Bearer obtenu par authentification Windows et, optionnellement, appartenance à un groupe AD.
+// Sécurité : jeton Bearer (un ou plusieurs émetteurs) -> sujets -> habilitations (admin, support, équipes).
 var securite = builder.Configuration.GetSection(OptionsSecurite.Section).Get<OptionsSecurite>() ?? new OptionsSecurite();
 if (securite.Active)
     builder.Services.AjouterSecurite(securite);
+builder.Services.AjouterHabilitations(securite);
 
 var app = builder.Build();
 
@@ -51,17 +70,22 @@ if (securite.Active)
     app.UseAuthentication();
     app.UseAuthorization();
 }
+app.UseHabilitations();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// Documentation de l'API (développement) : /openapi/v1.json et Scalar sur /scalar.
 if (app.Environment.IsDevelopment())
+{
     app.MapOpenApi();
+    app.MapScalarApiReference(o => o.WithTitle("OIM — API").AddPreferredSecuritySchemes("Bearer"));
+}
 
 app.MapAuth(securite, app.Environment);
 
 var api = app.MapGroup("/api");
-if (securite.Active) api.RequireAuthorization(Securite.Politique);
+if (securite.Active) api.RequireAuthorization(Fournisseurs.Politique);
 
 // Erreurs fonctionnelles (400/404/409) : réponse ProblemDetails sans journaliser d'erreur technique.
 api.AddEndpointFilter(async (contexte, suivant) =>
@@ -81,6 +105,7 @@ api.AddEndpointFilter(async (contexte, suivant) =>
     }
 });
 
+api.MapEquipes();
 api.MapDefinitions();
 api.MapInstances();
 

@@ -14,7 +14,10 @@ $projet = Join-Path $racine 'sources\OIM.Moteur\OIM.Moteur.csproj'
 
 $version = ([xml](Get-Content $projet)).Project.ItemGroup.PackageReference |
     Where-Object { $_.Include -eq 'Microsoft.DurableTask.SqlServer' } | Select-Object -ExpandProperty Version
-$dll = Join-Path $env:USERPROFILE ".nuget\packages\microsoft.durabletask.sqlserver\$version\lib\netstandard2.0\DurableTask.SqlServer.dll"
+# Cache NuGet du poste ou de l'agent de build (NUGET_PACKAGES, sinon %USERPROFILE%\.nuget\packages).
+$cache = (dotnet nuget locals global-packages --list) -replace '^global-packages:\s*', ''
+if (-not $cache) { $cache = Join-Path $env:USERPROFILE '.nuget\packages' }
+$dll = Join-Path $cache "microsoft.durabletask.sqlserver\$version\lib\netstandard2.0\DurableTask.SqlServer.dll"
 if (-not (Test-Path $dll)) { throw "Paquet absent ($dll) : exécuter « dotnet restore » d'abord." }
 
 $assembly = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($dll))

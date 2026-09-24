@@ -34,7 +34,7 @@
             <td>
               <strong>{{ c.nom }}</strong>
               <div class="texte-attenue texte-mono">{{ c.fichier }}</div>
-              <router-link v-if="c.instanceId" :to="`/instances/${encodeURIComponent(c.instanceId)}`">Voir l’instance de test</router-link>
+              <router-link v-if="c.instanceId" :to="lienInstance(c.instanceId)">Voir l’instance de test</router-link>
             </td>
             <td>
               <ul v-if="c.ecarts.length" class="diagnostics">
@@ -56,7 +56,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { RapportTests } from '@/lib/types'
+import { useEquipe } from '@/lib/equipe'
 
 const props = defineProps<{ rapport: RapportTests }>()
+const { lienInstance } = useEquipe()
 const dureeTotale = computed(() => (Math.max(0, ...props.rapport.cas.map((c) => c.dureeMs)) / 1000).toFixed(1))
 </script>

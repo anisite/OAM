@@ -1,4 +1,3 @@
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -18,26 +17,21 @@ namespace OIM.Tests;
 [TestCategory("Integration")]
 public sealed class TestsMetierTests
 {
-    private const string Connexion = @"Server=(localdb)\OIM;Database=OIM_Tests;Integrated Security=True;TrustServerCertificate=True";
+    private const string Connexion = BaseDeTests.Connexion;
     private static IHost? _hote;
 
     private static string DossierDefinitions =>
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "definitions"));
+
+    private const string Eq = "demo";
+    private static readonly Habilitations H = Habilitations.Systeme;
 
     private static ServiceTests Tests => _hote!.Services.GetRequiredService<ServiceTests>();
 
     [ClassInitialize]
     public static async Task Initialiser(TestContext _)
     {
-        try
-        {
-            await using var cn = new SqlConnection(Connexion.Replace("Database=OIM_Tests", "Database=master"));
-            await cn.OpenAsync();
-        }
-        catch (SqlException)
-        {
-            return;
-        }
+        if (!await BaseDeTests.AssurerAsync()) return;
 
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -49,6 +43,7 @@ public sealed class TestsMetierTests
         builder.Services.AjouterOim(builder.Configuration);
         _hote = builder.Build();
         await _hote.StartAsync();
+        await _hote.Services.GetRequiredService<ServiceEquipes>().AssurerAsync(Eq);
     }
 
     [ClassCleanup]
@@ -65,16 +60,20 @@ public sealed class TestsMetierTests
         if (_hote is null) Assert.Inconclusive("LocalDB « OIM » indisponible : sqllocaldb create OIM -s");
     }
 
-    /// <summary>Un test par cas : « traitement-demande / tests/approbation.yml ».</summary>
+    /// <summary>Un test par cas : « demo/traitement-demande / tests/approbation.yml » (definitions/&lt;equipe&gt;/&lt;processus&gt;).</summary>
     public static IEnumerable<object[]> CasDesPaquets() =>
         Directory.EnumerateDirectories(DossierDefinitions)
-            .SelectMany(d => CasTest.Trouver(PaquetDefinition.DepuisDossier(d)).Select(c => new object[] { Path.GetFileName(d), c.Chemin }));
+            .SelectMany(Directory.EnumerateDirectories)
+            .SelectMany(d => CasTest.Trouver(PaquetDefinition.DepuisDossier(d))
+                .Select(c => new object[] { $"{Path.GetFileName(Path.GetDirectoryName(d))}/{Path.GetFileName(d)}", c.Chemin }));
 
     [TestMethod]
     [DynamicData(nameof(CasDesPaquets))]
     public async Task Cas_metier(string processus, string cas)
     {
-        var rapport = await Tests.ExecuterAsync(PaquetDefinition.DepuisDossier(Path.Combine(DossierDefinitions, processus)), cas);
+        var equipe = processus.Split('/')[0];
+        await _hote!.Services.GetRequiredService<ServiceEquipes>().AssurerAsync(equipe);
+        var rapport = await Tests.ExecuterAsync(equipe, PaquetDefinition.DepuisDossier(Path.Combine(DossierDefinitions, processus)), cas);
 
         Assert.AreEqual(0, rapport.Diagnostics.Count, string.Join("\n", rapport.Diagnostics));
         var resultat = rapport.Cas.Single();
@@ -99,7 +98,7 @@ public sealed class TestsMetierTests
               courriels: [ { a: [autre@b.c] } ]
             """);
 
-        var r = (await Tests.ExecuterAsync(paquet)).Cas.Single();
+        var r = (await Tests.ExecuterAsync(Eq, paquet)).Cas.Single();
 
         Assert.IsFalse(r.Reussi);
         CollectionAssert.AreEquivalent(new[] { "etapeFinale", "courriels[0].a[0]" },
@@ -120,7 +119,7 @@ public sealed class TestsMetierTests
             attendu: { statut: Completed }
             """);
 
-        var r = (await Tests.ExecuterAsync(paquet)).Cas.Single();
+        var r = (await Tests.ExecuterAsync(Eq, paquet)).Cas.Single();
 
         Assert.IsFalse(r.Reussi);
         StringAssert.Contains(r.Ecarts[0], "Failed avant d'atteindre « approbation »");
@@ -130,7 +129,7 @@ public sealed class TestsMetierTests
     public async Task Deploiement_refuse_si_un_test_echoue_sauf_ignorerTests()
     {
         var id = $"refus-tests-{Guid.NewGuid():N}"[..30];
-        var exemple = PaquetDefinition.DepuisDossier(Path.Combine(DossierDefinitions, "traitement-demande"));
+        var exemple = PaquetDefinition.DepuisDossier(Path.Combine(DossierDefinitions, Eq, "traitement-demande"));
         var fichiers = exemple.Fichiers.Where(f => !CasTest.EstCasTest(f.Key)).ToDictionary();
         fichiers["tests/faux.yml"] = """
             nom: Faux
@@ -141,11 +140,11 @@ public sealed class TestsMetierTests
         var paquet = new PaquetDefinition(exemple.Yaml.Replace("id: traitement-demande", $"id: {id}"), fichiers);
         var definitions = _hote!.Services.GetRequiredService<ServiceDefinitions>();
 
-        var refuse = await definitions.DeployerAsync(paquet, "tests", null);
+        var refuse = await definitions.DeployerAsync(H, Eq, paquet, null);
         Assert.IsTrue(refuse.RefuseParTests);
-        Assert.IsNull(await _hote.Services.GetRequiredService<IDepotDefinitions>().ObtenirAsync(id));
+        Assert.IsNull(await _hote.Services.GetRequiredService<IDepotDefinitions>().ObtenirAsync(IdsEquipe.Qualifier(Eq, id)));
 
-        var force = await definitions.DeployerAsync(paquet, "tests", null, ignorerTests: true);
+        var force = await definitions.DeployerAsync(H, Eq, paquet, null, ignorerTests: true);
         Assert.IsNotNull(force.Deploiement);
         Assert.IsFalse(force.Tests!.Reussi);
     }
@@ -153,16 +152,16 @@ public sealed class TestsMetierTests
     [TestMethod]
     public async Task Les_tests_ne_laissent_aucune_trace_au_suivi()
     {
-        await Tests.ExecuterAsync(PaquetDefinition.DepuisDossier(Path.Combine(DossierDefinitions, "traitement-demande")), "en-attente");
+        await Tests.ExecuterAsync(Eq, PaquetDefinition.DepuisDossier(Path.Combine(DossierDefinitions, Eq, "traitement-demande")), "en-attente");
 
         var suivi = _hote!.Services.GetRequiredService<RequetesSuivi>();
-        Assert.AreEqual(0, (await suivi.ListerAsync(new FiltreInstances(Recherche: "~test"))).Total);
-        Assert.IsFalse((await suivi.StatistiquesAsync()).ParProcessus.Any(p => p.Processus.StartsWith('~')));
+        Assert.AreEqual(0, (await suivi.ListerAsync(H, new FiltreInstances(Recherche: "~test"))).Total);
+        Assert.IsFalse((await suivi.StatistiquesAsync(H)).ParProcessus.Any(p => p.Processus.StartsWith('~')));
     }
 
     private static PaquetDefinition PaquetAvecCas(string cas)
     {
-        var exemple = PaquetDefinition.DepuisDossier(Path.Combine(DossierDefinitions, "traitement-demande"));
+        var exemple = PaquetDefinition.DepuisDossier(Path.Combine(DossierDefinitions, Eq, "traitement-demande"));
         var fichiers = exemple.Fichiers.Where(f => !CasTest.EstCasTest(f.Key)).ToDictionary();
         fichiers["tests/cas.yml"] = cas;
         return new PaquetDefinition(exemple.Yaml, fichiers);

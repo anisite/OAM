@@ -39,16 +39,25 @@ public sealed record InstanceDetail(
     ErreurInstance? Erreur,
     IDictionary<string, string>? Etiquettes);
 
-/// <summary>Actions sur les instances : démarrage, événements et commandes de pilotage.</summary>
-public sealed class ServiceInstances(TaskHubClient client, SqlOrchestrationService service, IDepotDefinitions depot)
+/// <summary>
+/// Actions sur les instances : démarrage, événements et commandes de pilotage. L'id d'une instance est
+/// préfixé par son équipe (« equipe.id ») : c'est ce préfixe qui détermine qui peut la voir et la piloter.
+/// </summary>
+public sealed class ServiceInstances(TaskHubClient client, SqlOrchestrationService service, IDepotDefinitions depot, ServiceEquipes equipes)
 {
     private static readonly OrchestrationStatus[] StatutsActifs =
         [OrchestrationStatus.Pending, OrchestrationStatus.Running, OrchestrationStatus.Suspended, OrchestrationStatus.ContinuedAsNew];
 
-    public async Task<ResultatDemarrage> DemarrerAsync(string processus, JsonObject? entrees, int? version = null,
-        string? instanceId = null, string? demarrePar = null, CancellationToken ct = default)
+    /// <param name="processus">Id qualifié « equipe.processus ».</param>
+    /// <param name="instanceId">Id propre à l'appelant (ex. numéro de dossier), préfixé par l'équipe.</param>
+    public async Task<ResultatDemarrage> DemarrerAsync(Habilitations h, string processus, JsonObject? entrees, int? version = null,
+        string? instanceId = null, CancellationToken ct = default)
     {
-        var resume = (await depot.ListerAsync(ct)).FirstOrDefault(d => d.Id == processus)
+        var equipe = IdsEquipe.Equipe(processus);
+        h.ExigerPilotage(equipe, $"Processus « {processus} » introuvable.");
+        await equipes.ExigerActiveAsync(equipe!, ct);
+
+        var resume = (await depot.ListerAsync([equipe!], ct)).FirstOrDefault(d => d.Id == processus)
                      ?? throw ErreurPilotage.Introuvable($"Processus « {processus} » introuvable.");
         if (!resume.Actif && version is null)
             throw ErreurPilotage.Conflit($"Le processus « {processus} » est désactivé.");
@@ -59,12 +68,12 @@ public sealed class ServiceInstances(TaskHubClient client, SqlOrchestrationServi
         var (normalisees, erreurs) = ValidateurEntrees.Normaliser(lecture.Definition!, entrees);
         if (erreurs.Count > 0) throw ErreurPilotage.Invalide("Entrées invalides.", erreurs);
 
-        if (instanceId is not null && (instanceId.Length > 100 || instanceId.Any(char.IsWhiteSpace)))
-            throw ErreurPilotage.Invalide("L'identifiant d'instance doit faire au plus 100 caractères, sans espace.");
+        var id = IdsEquipe.Qualifier(equipe!, instanceId ?? Guid.NewGuid().ToString("N"));
+        if (instanceId is not null && (id.Length > 100 || instanceId.Length == 0 || instanceId.Any(char.IsWhiteSpace)))
+            throw ErreurPilotage.Invalide($"L'identifiant d'instance doit faire au plus {99 - equipe!.Length} caractères, sans espace.");
 
-        var id = instanceId ?? Guid.NewGuid().ToString("N");
         var entree = new EntreeOrchestration { DefinitionId = def.DefinitionId, Version = def.Version, Entrees = normalisees };
-        var etiquettes = new Dictionary<string, string> { ["demarrePar"] = demarrePar ?? "anonyme" };
+        var etiquettes = new Dictionary<string, string> { ["demarrePar"] = h.Utilisateur };
 
         try
         {
@@ -79,28 +88,28 @@ public sealed class ServiceInstances(TaskHubClient client, SqlOrchestrationServi
         return new ResultatDemarrage(id, def.DefinitionId, def.Version);
     }
 
-    public async Task EnvoyerEvenementAsync(string instanceId, string nom, JsonNode? donnees)
+    public async Task EnvoyerEvenementAsync(Habilitations h, string instanceId, string nom, JsonNode? donnees)
     {
-        var etat = await EtatActifAsync(instanceId);
+        var etat = await EtatActifAsync(h, instanceId);
         await client.RaiseEventAsync(etat.OrchestrationInstance, nom, Json.Brut(donnees));
     }
 
-    public async Task TerminerAsync(string instanceId, string? raison)
+    public async Task TerminerAsync(Habilitations h, string instanceId, string? raison)
     {
-        var etat = await EtatActifAsync(instanceId);
+        var etat = await EtatActifAsync(h, instanceId);
         await client.TerminateInstanceAsync(etat.OrchestrationInstance, raison ?? "Interrompue depuis le tableau de bord.");
     }
 
-    public async Task SuspendreAsync(string instanceId, string? raison)
+    public async Task SuspendreAsync(Habilitations h, string instanceId, string? raison)
     {
-        var etat = await EtatActifAsync(instanceId);
+        var etat = await EtatActifAsync(h, instanceId);
         if (etat.OrchestrationStatus == OrchestrationStatus.Suspended) return;
         await client.SuspendInstanceAsync(etat.OrchestrationInstance, raison ?? "Suspendue depuis le tableau de bord.");
     }
 
-    public async Task ReprendreAsync(string instanceId, string? raison)
+    public async Task ReprendreAsync(Habilitations h, string instanceId, string? raison)
     {
-        var etat = await EtatAsync(instanceId);
+        var etat = await EtatAsync(h, instanceId);
         if (etat.OrchestrationStatus != OrchestrationStatus.Suspended)
             throw ErreurPilotage.Conflit("Seule une instance suspendue peut être reprise.");
         await client.ResumeInstanceAsync(etat.OrchestrationInstance, raison ?? "Reprise depuis le tableau de bord.");
@@ -110,33 +119,33 @@ public sealed class ServiceInstances(TaskHubClient client, SqlOrchestrationServi
     /// Relance une instance en échec à partir de l'étape fautive : les activités échouées sont
     /// retirées de l'historique et rejouées (rewind), le reste est conservé.
     /// </summary>
-    public async Task RelancerAsync(string instanceId, string? raison)
+    public async Task RelancerAsync(Habilitations h, string instanceId, string? raison)
     {
-        var etat = await EtatAsync(instanceId);
+        var etat = await EtatAsync(h, instanceId);
         if (etat.OrchestrationStatus != OrchestrationStatus.Failed)
             throw ErreurPilotage.Conflit("Seule une instance en échec peut être relancée.");
         await service.RewindTaskOrchestrationAsync(instanceId, raison ?? "Relancée depuis le tableau de bord.");
     }
 
     /// <summary>Démarre une nouvelle instance avec les mêmes entrées.</summary>
-    public async Task<ResultatDemarrage> RedemarrerAsync(string instanceId, bool versionCourante, string? par)
+    public async Task<ResultatDemarrage> RedemarrerAsync(Habilitations h, string instanceId, bool versionCourante)
     {
-        var etat = await EtatAsync(instanceId);
+        var etat = await EtatAsync(h, instanceId);
         var entree = EntreeOrchestration.Lire(etat.Input);
-        return await DemarrerAsync(entree.DefinitionId, entree.Entrees, versionCourante ? null : entree.Version, null, par);
+        return await DemarrerAsync(h, entree.DefinitionId, entree.Entrees, versionCourante ? null : entree.Version);
     }
 
-    public async Task PurgerAsync(string instanceId)
+    public async Task PurgerAsync(Habilitations h, string instanceId)
     {
-        var etat = await EtatAsync(instanceId);
+        var etat = await EtatAsync(h, instanceId);
         if (StatutsActifs.Contains(etat.OrchestrationStatus))
             throw ErreurPilotage.Conflit("Une instance active ne peut être supprimée : interrompez-la d'abord.");
         await service.PurgeInstanceStateAsync(instanceId);
     }
 
-    public async Task<InstanceDetail> ObtenirAsync(string instanceId)
+    public async Task<InstanceDetail> ObtenirAsync(Habilitations h, string instanceId)
     {
-        var e = await EtatAsync(instanceId);
+        var e = await EtatAsync(h, instanceId);
         var sortie = Json.Lire(e.Output);
         ErreurInstance? erreur = e.FailureDetails is { } f
             ? new ErreurInstance(f.ErrorType, f.ErrorMessage, f.StackTrace)
@@ -167,8 +176,9 @@ public sealed class ServiceInstances(TaskHubClient client, SqlOrchestrationServi
     /// l'orchestration : une réponse suivie d'une attente (événement, activité) est donc visible
     /// immédiatement, pendant que le processus continue.
     /// </summary>
-    public async Task<ResultatAttente> AttendreReponseAsync(string instanceId, TimeSpan delai, CancellationToken ct = default)
+    public async Task<ResultatAttente> AttendreReponseAsync(Habilitations h, string instanceId, TimeSpan delai, CancellationToken ct = default)
     {
+        h.ExigerLecture(IdsEquipe.Equipe(instanceId), Introuvable(instanceId));
         var limite = DateTime.UtcNow + delai;
         var pause = TimeSpan.FromMilliseconds(100);
         while (true)
@@ -199,13 +209,18 @@ public sealed class ServiceInstances(TaskHubClient client, SqlOrchestrationServi
         }
     }
 
-    private async Task<OrchestrationState> EtatAsync(string instanceId) =>
-        await client.GetOrchestrationStateAsync(instanceId)
-        ?? throw ErreurPilotage.Introuvable($"Instance « {instanceId} » introuvable.");
-
-    private async Task<OrchestrationState> EtatActifAsync(string instanceId)
+    /// <summary>État d'une instance visible par l'appelant (introuvable sinon).</summary>
+    private async Task<OrchestrationState> EtatAsync(Habilitations h, string instanceId)
     {
-        var etat = await EtatAsync(instanceId);
+        h.ExigerPilotage(IdsEquipe.Equipe(instanceId), Introuvable(instanceId));
+        return await client.GetOrchestrationStateAsync(instanceId) ?? throw ErreurPilotage.Introuvable(Introuvable(instanceId));
+    }
+
+    private static string Introuvable(string instanceId) => $"Instance « {instanceId} » introuvable.";
+
+    private async Task<OrchestrationState> EtatActifAsync(Habilitations h, string instanceId)
+    {
+        var etat = await EtatAsync(h, instanceId);
         if (!StatutsActifs.Contains(etat.OrchestrationStatus))
             throw ErreurPilotage.Conflit($"L'instance « {instanceId} » n'est plus active ({etat.OrchestrationStatus}).");
         return etat;

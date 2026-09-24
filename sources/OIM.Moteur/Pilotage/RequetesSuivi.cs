@@ -24,6 +24,7 @@ public sealed record InstanceResume(
 public sealed record PageInstances(IReadOnlyList<InstanceResume> Elements, int Total, int Page, int Taille);
 
 public sealed record FiltreInstances(
+    string? Equipe = null,
     IReadOnlyList<string>? Statuts = null,
     string? Processus = null,
     string? Recherche = null,
@@ -59,6 +60,7 @@ public sealed record EvenementHistorique(
 /// <summary>
 /// Requêtes de suivi directement sur les vues DurableTask (dt.vInstances, dt.vHistory) :
 /// filtrage par processus, recherche plein texte et agrégats que l'API DurableTask n'offre pas.
+/// Les équipes se filtrent sur le préfixe de l'InstanceID (« equipe.… », index de la clé primaire).
 /// </summary>
 public sealed class RequetesSuivi(ConnexionSql connexion, IOptions<OptionsOim> options)
 {
@@ -79,11 +81,15 @@ public sealed class RequetesSuivi(ConnexionSql connexion, IOptions<OptionsOim> o
             CASE WHEN ISJSON(i.CustomStatusText) = 1 THEN JSON_VALUE(i.CustomStatusText, '$.erreur') END AS Erreur) s
         """;
 
-    public async Task<PageInstances> ListerAsync(FiltreInstances f, CancellationToken ct = default)
+    public async Task<PageInstances> ListerAsync(Habilitations h, FiltreInstances f, CancellationToken ct = default)
     {
-        // Les instances de tests métier (brouillons « ~… ») ne font pas partie du suivi.
-        var where = new StringBuilder("WHERE i.Name NOT LIKE '~%'");
+        var taille = Math.Clamp(f.Taille, 1, 200);
+        var page = Math.Max(1, f.Page);
         var p = new DynamicParameters();
+        if (ClauseEquipes(h, f.Equipe, p) is not { } equipes) return new PageInstances([], 0, page, taille);
+
+        // Les instances de tests métier (brouillons « ~… ») ne font pas partie du suivi.
+        var where = new StringBuilder("WHERE i.Name NOT LIKE '~%'").Append(equipes);
 
         if (f.Statuts is { Count: > 0 })
         {
@@ -116,8 +122,6 @@ public sealed class RequetesSuivi(ConnexionSql connexion, IOptions<OptionsOim> o
         if (!f.InclureSousProcessus)
             where.Append(" AND i.ParentInstanceID IS NULL");
 
-        var taille = Math.Clamp(f.Taille, 1, 200);
-        var page = Math.Max(1, f.Page);
         p.Add("saut", (page - 1) * taille);
         p.Add("taille", taille);
 
@@ -138,32 +142,36 @@ public sealed class RequetesSuivi(ConnexionSql connexion, IOptions<OptionsOim> o
         return new PageInstances(elements, total, page, taille);
     }
 
-    public async Task<Statistiques> StatistiquesAsync(CancellationToken ct = default)
+    public async Task<Statistiques> StatistiquesAsync(Habilitations h, string? equipe = null, CancellationToken ct = default)
     {
+        var p = new DynamicParameters();
+        if (ClauseEquipes(h, equipe, p) is not { } equipes)
+            return new Statistiques(new Dictionary<string, int>(), [], 0, 0, 0, 0, [], []);
+
         await using var cn = await connexion.OuvrirAsync(ct);
         using var multi = await cn.QueryMultipleAsync(new CommandDefinition($"""
-            SELECT Name AS Processus, RuntimeStatus AS Statut, COUNT(*) AS Nombre
-            FROM {Dt}.vInstances WHERE Name NOT LIKE '~%' GROUP BY Name, RuntimeStatus;
+            SELECT i.Name AS Processus, i.RuntimeStatus AS Statut, COUNT(*) AS Nombre
+            FROM {Dt}.vInstances i WHERE i.Name NOT LIKE '~%'{equipes} GROUP BY i.Name, i.RuntimeStatus;
 
             SELECT
-              SUM(CASE WHEN CreatedTime >= DATEADD(hour, -24, SYSUTCDATETIME()) THEN 1 ELSE 0 END),
-              SUM(CASE WHEN RuntimeStatus = 'Completed' AND CompletedTime >= DATEADD(hour, -24, SYSUTCDATETIME()) THEN 1 ELSE 0 END),
-              SUM(CASE WHEN RuntimeStatus = 'Failed' AND CompletedTime >= DATEADD(hour, -24, SYSUTCDATETIME()) THEN 1 ELSE 0 END)
-            FROM {Dt}.vInstances WHERE Name NOT LIKE '~%';
+              SUM(CASE WHEN i.CreatedTime >= DATEADD(hour, -24, SYSUTCDATETIME()) THEN 1 ELSE 0 END),
+              SUM(CASE WHEN i.RuntimeStatus = 'Completed' AND i.CompletedTime >= DATEADD(hour, -24, SYSUTCDATETIME()) THEN 1 ELSE 0 END),
+              SUM(CASE WHEN i.RuntimeStatus = 'Failed' AND i.CompletedTime >= DATEADD(hour, -24, SYSUTCDATETIME()) THEN 1 ELSE 0 END)
+            FROM {Dt}.vInstances i WHERE i.Name NOT LIKE '~%'{equipes};
 
             {SelectInstances}
-            WHERE i.RuntimeStatus = 'Failed' AND i.Name NOT LIKE '~%'
+            WHERE i.RuntimeStatus = 'Failed' AND i.Name NOT LIKE '~%'{equipes}
             ORDER BY i.LastUpdatedTime DESC OFFSET 0 ROWS FETCH NEXT 8 ROWS ONLY;
 
             {SelectInstances}
-            WHERE i.RuntimeStatus = 'Running' AND s.EvenementAttendu IS NOT NULL AND i.Name NOT LIKE '~%'
+            WHERE i.RuntimeStatus = 'Running' AND s.EvenementAttendu IS NOT NULL AND i.Name NOT LIKE '~%'{equipes}
             ORDER BY CASE WHEN s.Echeance IS NULL THEN 1 ELSE 0 END, TRY_CONVERT(datetime2, s.Echeance, 127)
             OFFSET 0 ROWS FETCH NEXT 8 ROWS ONLY;
 
             SELECT COUNT(*) FROM {Dt}.vInstances i
-            WHERE i.RuntimeStatus = 'Running' AND i.Name NOT LIKE '~%' AND ISJSON(i.CustomStatusText) = 1
+            WHERE i.RuntimeStatus = 'Running' AND i.Name NOT LIKE '~%'{equipes} AND ISJSON(i.CustomStatusText) = 1
               AND JSON_VALUE(i.CustomStatusText, '$.attente.evenement') IS NOT NULL;
-            """, cancellationToken: ct));
+            """, p, cancellationToken: ct));
 
         var parProcessus = (await multi.ReadAsync<StatistiqueProcessus>()).ToList();
         var (demarrees, terminees, echouees) = await multi.ReadSingleAsync<(int?, int?, int?)>();
@@ -176,8 +184,10 @@ public sealed class RequetesSuivi(ConnexionSql connexion, IOptions<OptionsOim> o
     }
 
     /// <param name="complet">false : données tronquées à 8000 caractères (affichage).</param>
-    public async Task<IReadOnlyList<EvenementHistorique>> HistoriqueAsync(string instanceId, CancellationToken ct = default, bool complet = false)
+    public async Task<IReadOnlyList<EvenementHistorique>> HistoriqueAsync(Habilitations h, string instanceId, CancellationToken ct = default,
+        bool complet = false)
     {
+        h.ExigerLecture(IdsEquipe.Equipe(instanceId), $"Instance « {instanceId} » introuvable.");
         await using var cn = await connexion.OuvrirAsync(ct);
         var lignes = await cn.QueryAsync<EvenementHistorique>(new CommandDefinition($"""
             SELECT ExecutionID AS ExecutionId, SequenceNumber AS Sequence, EventType AS Type, Name AS Nom, TaskID AS TacheId,
@@ -187,6 +197,52 @@ public sealed class RequetesSuivi(ConnexionSql connexion, IOptions<OptionsOim> o
             ORDER BY Timestamp, SequenceNumber
             """, new { instanceId }, cancellationToken: ct));
         return lignes.Select(l => l with { Horodatage = DateTime.SpecifyKind(l.Horodatage, DateTimeKind.Utc) }).ToList();
+    }
+
+    /// <summary>Instances de premier niveau actives, en échec et en attente d'un événement, par équipe.</summary>
+    public async Task<IReadOnlyDictionary<string, CompteursEquipe>> CompteursParEquipeAsync(IReadOnlyCollection<string> equipes,
+        CancellationToken ct = default)
+    {
+        if (equipes.Count == 0) return new Dictionary<string, CompteursEquipe>();
+        await using var cn = await connexion.OuvrirAsync(ct);
+        var lignes = await cn.QueryAsync<(string Equipe, int Actives, int Echecs, int EnAttente)>(new CommandDefinition($"""
+            SELECT LEFT(i.InstanceID, CHARINDEX('.', i.InstanceID) - 1) AS Equipe,
+                   SUM(CASE WHEN i.RuntimeStatus IN ('Running','Pending','Suspended') THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN i.RuntimeStatus = 'Failed' THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN i.RuntimeStatus = 'Running' AND ISJSON(i.CustomStatusText) = 1
+                             AND JSON_VALUE(i.CustomStatusText, '$.attente.evenement') IS NOT NULL THEN 1 ELSE 0 END)
+            FROM {Dt}.vInstances i
+            WHERE i.RuntimeStatus IN ('Running','Pending','Suspended','Failed') AND i.Name NOT LIKE '~%'
+              AND i.ParentInstanceID IS NULL AND CHARINDEX('.', i.InstanceID) > 1
+            GROUP BY LEFT(i.InstanceID, CHARINDEX('.', i.InstanceID) - 1)
+            """, cancellationToken: ct));
+        var voulues = equipes.ToHashSet(StringComparer.Ordinal);
+        return lignes.Where(l => voulues.Contains(l.Equipe))
+            .ToDictionary(l => l.Equipe, l => new CompteursEquipe(l.Actives, l.Echecs, l.EnAttente));
+    }
+
+    /// <summary>
+    /// Restriction aux équipes visibles (une seule si <paramref name="equipe"/> est précisée) :
+    /// chaîne vide si aucune restriction, null si aucune équipe n'est visible (résultat vide).
+    /// </summary>
+    private static string? ClauseEquipes(Habilitations h, string? equipe, DynamicParameters p)
+    {
+        IReadOnlyCollection<string>? equipes;
+        if (!string.IsNullOrEmpty(equipe))
+        {
+            h.ExigerLecture(equipe, $"Équipe « {equipe} » introuvable.");
+            equipes = [equipe];
+        }
+        else equipes = h.FiltreEquipes;
+
+        if (equipes is null) return "";
+        if (equipes.Count == 0) return null;
+        var conditions = equipes.Select((e, n) =>
+        {
+            p.Add($"equipe{n}", $"{e}{IdsEquipe.Separateur}%");
+            return $"i.InstanceID LIKE @equipe{n}";
+        }).ToList();
+        return $" AND ({string.Join(" OR ", conditions)})";
     }
 
     private static InstanceResume Normaliser(InstanceResume r) => r with

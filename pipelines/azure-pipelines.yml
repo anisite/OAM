@@ -12,10 +12,11 @@
 #     les approbations de prédéploiement des releases classiques.
 #   - Groupes de variables (bibliothèque) : OIM.Parametres.General et OIM.Parametres.<palier>
 #     (sat, ac, it, PROD, ac.ligne.prod). Voir deployer-oim.yml et la section plus bas.
+#   - Site drain.local sur les serveurs d'IT et de PROD (sonde de l'équilibreur), comme pour GED.
 #
 # Les étapes de déploiement sont des gabarits réutilisables, équivalents YAML des groupes de tâches de GED :
 # pipelines/Deployer/Deployer.*.yml (à déplacer plus tard dans un dépôt partagé entre applications).
-#   - Site drain.local sur les serveurs d'IT et de PROD (sonde de l'équilibreur), comme pour GED.
+# Azure DevOps Server : artefacts de build (PublishBuildArtifacts / DownloadBuildArtifacts), pas de « pipeline artifacts ».
 
 name: $(SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)
 
@@ -103,11 +104,12 @@ stages:
               SourceFolder: 'pipelines/scripts'
               TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
-          - task: PublishPipelineArtifact@1
+          # Azure DevOps Server : artefacts de build (les « pipeline artifacts » n'existent qu'en Services).
+          - task: PublishBuildArtifacts@1
             displayName: 'Publier l’artefact drop'
             inputs:
-              targetPath: '$(Build.ArtifactStagingDirectory)'
-              artifact: 'drop'
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'drop'
 
   # ── Configuration par palier ────────────────────────────────────────────────
   # OIM.Parametres.General : OIM.CheminPhysique (C:\inetpub\wwwroot\OIM), OIM.MaxProcess (1)

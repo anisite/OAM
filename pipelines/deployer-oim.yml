@@ -9,8 +9,16 @@
 # et les clés de appsettings.json à substituer (ConnectionStrings.Oim, Oim.Securite.Fournisseurs.oim.Cle, …).
 
 steps:
-  - download: current
-    artifact: drop
+  # Azure DevOps Server : artefact de build (pas de téléchargement automatique de « pipeline artifacts »).
+  - download: none
+
+  - task: DownloadBuildArtifacts@0
+    displayName: 'Télécharger l’artefact drop'
+    inputs:
+      buildType: 'current'
+      downloadType: 'single'
+      artifactName: 'drop'
+      downloadPath: '$(Pipeline.Workspace)'
 
   - template: Deployer/Deployer.SiteWeb.yml
     parameters:

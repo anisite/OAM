@@ -203,11 +203,34 @@ public sealed class OrchestrationProcessus(ILogger<OrchestrationProcessus> journ
                     ["cc"] = Gabarit.Resoudre(etape.Valeur("cc"), ctx),
                     ["cci"] = Gabarit.Resoudre(etape.Valeur("cci"), ctx),
                     ["contexte"] = FusionnerDonnees(ctx, Gabarit.Resoudre(etape.Valeur("donnees"), ctx)),
-                    ["cle"] = CleIdempotence(context, etape)
+                    ["cle"] = CleIdempotence(context, etape),
+                    ["langue"] = Texte(etape, "langue", ctx)
                 };
                 if (EnTest) parametres["test"] = true;  // rendu complet du gabarit, sans envoi
                 return new ResultatEtape(await AppelerActiviteAsync(context, NomsActivites.Courriel, parametres, Reprise(etape)));
             }
+
+            case var type when CatalogueEtapes.TypesService.Contains(type):
+            {
+                // Propriétés résolues transmises telles quelles au service du type (voir ServiceActivite).
+                var parametres = new JsonObject
+                {
+                    ["service"] = type,
+                    ["etape"] = etape.Id,
+                    ["parametres"] = Gabarit.Resoudre(etape.Proprietes, ctx),
+                    ["correlation"] = context.OrchestrationInstance.InstanceId,
+                    ["cle"] = CleIdempotence(context, etape)
+                };
+                if (EnTest)
+                {
+                    parametres["test"] = true;
+                    parametres["mock"] = MockPour(etape.Id);
+                }
+                return new ResultatEtape(await AppelerActiviteAsync(context, NomsActivites.Service, parametres, Reprise(etape)));
+            }
+
+            case CatalogueEtapes.BoiteGenerique:
+                return await BoiteGeneriqueAsync(context, version, etape, ctx);
 
             case CatalogueEtapes.AttendreEvenement:
             {
@@ -325,6 +348,55 @@ public sealed class OrchestrationProcessus(ILogger<OrchestrationProcessus> journ
             default:
                 throw new ErreurProcessus($"Type d'étape « {etape.Type} » non pris en charge.");
         }
+    }
+
+    /// <summary>
+    /// Premier bloc dont la condition <c>si</c> est vraie (ou sans condition) : adresse résolue (bloc ou table
+    /// BSQ du paquet), puis courriel au gabarit du bloc ou de l'étape. Aucun bloc applicable : rien n'est envoyé.
+    /// </summary>
+    private async Task<ResultatEtape> BoiteGeneriqueAsync(OrchestrationContext context, int version, Etape etape, JsonObject ctx)
+    {
+        var blocs = etape.Valeur("blocs") as JsonArray ?? throw new ErreurProcessus("« blocs » doit être une liste.");
+        var index = -1;
+        JsonObject? bloc = null;
+        for (var i = 0; i < blocs.Count && bloc is null; i++)
+        {
+            if (blocs[i] is not JsonObject candidat) continue;
+            if (candidat["si"] is { } si && !Gabarit.Condition(Expression.EnTexte(si), ctx)) continue;
+            index = i;
+            bloc = Gabarit.Resoudre(candidat, ctx) as JsonObject;
+        }
+        if (bloc is null) return new ResultatEtape(new JsonObject { ["envoye"] = false });
+
+        var boite = await AppelerActiviteAsync(context, NomsActivites.ResoudreBoite, new JsonObject
+        {
+            ["definitionId"] = _idStockage,
+            ["version"] = version,
+            ["index"] = index,
+            ["bloc"] = bloc.DeepClone()
+        }, null) as JsonObject ?? throw new ErreurProcessus("Boîte générique non résolue.");
+
+        var donnees = new JsonObject { ["boite"] = boite.DeepClone() };
+        if (Gabarit.Resoudre(etape.Valeur("donnees"), ctx) is JsonObject extra)
+            foreach (var (cle, valeur) in extra) donnees[cle] = valeur?.DeepClone();
+
+        var parametres = new JsonObject
+        {
+            ["definitionId"] = _idStockage,
+            ["version"] = version,
+            ["gabarit"] = Expression.EnTexte(bloc["gabarit"]) is { Length: > 0 } g ? g : Texte(etape, "gabarit", ctx),
+            ["a"] = boite["a"]?.DeepClone(),
+            ["contexte"] = FusionnerDonnees(ctx, donnees),
+            ["cle"] = CleIdempotence(context, etape),
+            ["langue"] = Texte(etape, "langue", ctx)
+        };
+        if (EnTest) parametres["test"] = true;
+        var courriel = await AppelerActiviteAsync(context, NomsActivites.Courriel, parametres, Reprise(etape));
+
+        var sortie = boite.DeepClone().AsObject();
+        sortie["envoye"] = true;
+        sortie["courriel"] = courriel?.DeepClone();
+        return new ResultatEtape(sortie);
     }
 
     private static string? ChoisirSuivante(Etape etape, JsonObject ctx)

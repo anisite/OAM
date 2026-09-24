@@ -40,8 +40,33 @@ public static class Fonctions
         ["ajouterHeures"] = a => AjouterDuree(a, TimeSpan.FromHours(1)),
         ["formaterDate"] = a => JsonValue.Create(LireDate(Arg(a, 0)) is { } d
             ? d.ToString(a.Length > 1 ? Expression.EnTexte(a[1]) : "yyyy-MM-dd", CultureInfo.GetCultureInfo("fr-CA"))
-            : string.Empty)
+            : string.Empty),
+        // si(condition, siVrai, siFaux) : valeur conditionnelle (calculs conditionnels ECS25A).
+        ["si"] = a => (Expression.EstVrai(Arg(a, 0)) ? Arg(a, 1) : Arg(a, 2))?.DeepClone(),
+        // formaterNom(x) : majuscules sans accents (comparaisons GDI, FormatterNom d'ECS).
+        ["formaterNom"] = a => JsonValue.Create(SansAccents(Expression.EnTexte(Arg(a, 0)).Trim().ToUpperInvariant())),
+        // formaterNAS(x) : chiffres seulement (sans espaces ni tirets).
+        ["formaterNAS"] = a => JsonValue.Create(Expression.EnTexte(Arg(a, 0)).Replace(" ", "").Replace("-", "")),
+        // sousChaine(x, debut, longueur?) : tolère les débordements (Substring d'ECS).
+        ["sousChaine"] = a =>
+        {
+            var s = Expression.EnTexte(Arg(a, 0));
+            var debut = (int)Expression.Nombre(Arg(a, 1));
+            if (debut < 0 || debut >= s.Length) return JsonValue.Create(string.Empty);
+            var longueur = a.Length > 2 ? (int)Expression.Nombre(Arg(a, 2)) : s.Length - debut;
+            return JsonValue.Create(s.Substring(debut, Math.Clamp(longueur, 0, s.Length - debut)));
+        },
+        ["remplacer"] = a => JsonValue.Create(Expression.EnTexte(Arg(a, 0)).Replace(Expression.EnTexte(Arg(a, 1)), Expression.EnTexte(Arg(a, 2))))
     };
+
+    private static string SansAccents(string s)
+    {
+        var decompose = s.Normalize(System.Text.NormalizationForm.FormD);
+        var resultat = new System.Text.StringBuilder(decompose.Length);
+        foreach (var c in decompose)
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) resultat.Append(c);
+        return resultat.ToString().Normalize(System.Text.NormalizationForm.FormC);
+    }
 
     public static IEnumerable<string> Noms => Table.Keys;
 

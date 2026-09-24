@@ -1,0 +1,350 @@
+# yaml-language-server: $schema=../../../schemas/processus.schema.json
+#
+# Transmission du formulaire FRW 3003 (demande d'aide financière de dernier recours et/ou de services
+# d'emploi), reprise de la configuration ECS25A réelle : \\w700p001par15\DonneesSysteme\FRW\Formulaires\700-ECS\3003\3003.config.yml.
+#
+# Appel (façade ECS25A ou FRW) : POST /api/processus/ecs.frw-3003/instances?instanceId=<ide>&attendre=30s
+# Les fichiers ne transitent jamais par OIM : documents et fichiers bruts sont des références au dépôt.
+id: frw-3003
+nom: Transmission du formulaire 3003
+description: Aide financière de dernier recours (AFDR) et services d'emploi (EQ) — ancien ECS25A.
+
+entrees:
+  ide:            { type: string, requis: true, libelle: Numéro de demande, description: Numéro de confirmation (X-NoConfirmation). }
+  langue:         { type: string, defaut: fr, description: "fr ou en" }
+  champs:         { type: object, requis: true, description: "Champs du formulaire FRW (form_…), à plat, tels que reçus par ECS25A." }
+  documents:      { type: array, defaut: [], description: "Documents téléversés dans FRW : { nomEncode, nomOriginal, metadonnees }." }
+  fichiersBruts:  { type: array, defaut: [], description: "PDF générés par FRW : { nom (nomEntrant), reference }." }
+  contexteECS:    { type: object, description: "Contexte de l'espace client : identité vérifiée, CP12, code d'authentification." }
+  courrielClient: { type: string, description: Adresse de confirmation (systeme_infosEnregistrement_courriel). }
+
+etapes:
+  # Région administrative, CLE de juridiction du code postal et bureau décloisonné par ligne d'affaires
+  # (helpers RegionAdministrative, CleJuridiction, EstBsqDecloisonne) : { region, cleJuridiction, decloisonne: { ASF, EQ } }.
+  - id: localiser
+    type: http
+    requete: localiser-code-postal.yml
+    donnees: { codePostal: "{{ entrees.champs.form_adulte1Adresse_0_CodePostal }}" }
+    retry: { tentatives: 3, delai: 00:00:10, backoff: 2 }
+    statut: Réception de la demande
+    siErreur: calcules
+    suivant: calcules
+
+  # calcules + calculesConditions
+  - id: calcules
+    type: definir
+    variables:
+      codePostal: "{{ entrees.champs.form_adulte1Adresse_0_CodePostal }}"
+      regionAdmin: "{{ premier(etapes.localiser.sortie.region, 'XX') }}"
+      cleJuridictionCP: "{{ premier(etapes.localiser.sortie.cleJuridiction, 'XXX') }}"
+      estCodePostalInvalide: "{{ premier(etapes.localiser.sortie.cleJuridiction, 'XXX') == 'XXX' }}"
+      estAFDR: "{{ entrees.champs.form_TypeDemande_0 == 'Afdr' || entrees.champs.form_TypeDemande_1 == 'Afdr' }}"
+      estEQ: "{{ entrees.champs.form_TypeDemande_0 == 'AideEmploi' || entrees.champs.form_TypeDemande_1 == 'AideEmploi' }}"
+      presenceRevenus: >-
+        {{ si(entrees.champs.form_PossedeRevenusTravail == 'true' || entrees.champs.form_PossedeRevenusGouvernementaux == 'true'
+              || entrees.champs.form_PossedeRevenuAutre == 'true' || entrees.champs.form_PossedeRevenuAttente == 'true', 'Oui', 'Non') }}
+      presenceAvoirsLiquides: >-
+        {{ si(entrees.champs.form_PossedeAvoirsComptes == 'true' || entrees.champs.form_PossedeAvoirsEnMain == 'true'
+              || entrees.champs.form_PossedeChequesEnCirculation == 'true' || entrees.champs.form_PossedePlacements == 'true'
+              || entrees.champs.form_PossedeSommesDues == 'true', 'Oui', 'Non') }}
+      presenceBiens: >-
+        {{ si(entrees.champs.form_PossedeBiensVehicules == 'true' || entrees.champs.form_PossedeBiensImmobiliers == 'true'
+              || entrees.champs.form_PossedeBiensMobiliers == 'true' || entrees.champs.form_PossedeBiensAssuranceVie == 'true'
+              || entrees.champs.form_PossedeEntreprise == 'true' || entrees.champs.form_PossedeBiensCedes == 'true', 'Oui', 'Non') }}
+      estRaisonAutreAfdrAdulte1: "{{ entrees.champs.form_adulte1RaisonAfdr_0_PrecisionRaisonDemandeAfdr == 'PrecisionRaisonDemandeAfdrAutreRaison' }}"
+      estRaisonAutreAfdrAdulte2: "{{ entrees.champs.form_adulte2RaisonAfdr_0_PrecisionRaisonDemandeAfdr == 'PrecisionRaisonDemandeAfdrAutreRaison' }}"
+      consentementEchangeRenseignements: "{{ entrees.champs.form_ConsentementEchangeRenseignements == 'ConsentementOui' }}"
+      dateDemande: "{{ formaterDate(instance.debut, 'yyyy-MM-dd') }}"
+    suivant: calculesFinaux
+
+  - id: calculesFinaux
+    type: definir
+    variables:
+      estAFDRSeul: "{{ variables.estAFDR && !variables.estEQ }}"
+      estEQSeul: "{{ variables.estEQ && !variables.estAFDR }}"
+      estAFDRetEQ: "{{ variables.estAFDR && variables.estEQ }}"
+      equipe: "{{ si(variables.estAFDR && variables.estEQ, 'DD', si(variables.estAFDR, 'SR', si(variables.estEQ, 'EQ', ''))) }}"
+      typeDemande: "{{ si(variables.estAFDR, 'AFDR', '') + si(variables.estAFDR && variables.estEQ, ' et ', '') + si(variables.estEQ, 'SP Emploi', '') }}"
+      ligneAffaire: "{{ si(variables.estAFDR, 'ASF', si(variables.estEQ, 'EQ', '')) }}"
+    suivant: decloisonnement
+
+  # AFDR avec code postal invalide : décloisonné; code postal valide : selon le BSQ et la ligne d'affaires.
+  - id: decloisonnement
+    type: definir
+    variables:
+      estBureauDecloisonne: >-
+        {{ si(variables.estCodePostalInvalide, variables.estAFDR,
+              si(variables.ligneAffaire == 'EQ', etapes.localiser.sortie.decloisonne.EQ == true, etapes.localiser.sortie.decloisonne.ASF == true)) }}
+    suivant: apparier
+
+  # gererDonneesIndividu : appariement au GDI (création de l'individu s'il est introuvable).
+  - id: apparier
+    type: apparierGdi
+    statut: Appariement au GDI
+    identite:
+      nam: "{{ entrees.champs.form_adulte1Nam }}"
+      nas: "{{ formaterNAS(entrees.champs.form_adulte1Nas1) + formaterNAS(entrees.champs.form_adulte1Nas2) }}"
+      cp12: "{{ entrees.champs.form_adulte1Cp12 }}"
+      prenom: "{{ formaterNom(entrees.champs.form_adulte1Prenom) }}"
+      nom: "{{ formaterNom(entrees.champs.form_adulte1NomFamille) }}"
+      dateNaissance: "{{ entrees.champs.form_adulte1DateNaissance }}"
+      sexe: "{{ sousChaine(entrees.champs.form_adulte1Sexe, 0, 1) }}"
+      etatCivil: "{{ entrees.champs.form_adulte1EtatMatrimonial }}"
+      langue: "{{ entrees.champs.form_adulte1Langue }}"
+      autochtone: "{{ entrees.champs.form_adulte1Autochtone }}"
+      autochtoneType: "{{ entrees.champs.form_adulte1AutochtoneType }}"
+      neAuQuebec: "{{ entrees.champs.form_adulte1NeQC }}"
+      neAuCanada: "{{ entrees.champs.form_adulte1NeCanada }}"
+      estCitoyenCanadien: "{{ entrees.champs.form_adulte1CitCanadienne }}"
+      estResidentPermanent: "{{ entrees.champs.form_adulte1EstResidentPermanent }}"
+      estDemandeurAsile: "{{ entrees.champs.form_adulte1EstDemandeurAsile }}"
+      paysNaissance: "{{ entrees.champs.form_adulte1Pays1 }}"
+      dateArriveeCanada: "{{ entrees.champs.form_adulte1DateArriveeCanada }}"
+      adresse:
+        numeroCivique: "{{ entrees.champs.form_adulte1Adresse_0_NoCivique }}"
+        rue: "{{ entrees.champs.form_adulte1Adresse_0_Rue }}"
+        municipalite: "{{ entrees.champs.form_adulte1Adresse_0_Municipalite }}"
+        municipaliteNomLong: "{{ entrees.champs.form_adulte1Adresse_0_MunicipaliteNomLong }}"
+        codePostal: "{{ entrees.champs.form_adulte1Adresse_0_CodePostal }}"
+        appartement: "{{ entrees.champs.form_adulte1Adresse_0_Appartement }}"
+        modeSaisie: "{{ entrees.champs.form_adulte1Adresse_0_ModeSaisie }}"
+      telephoneResidence: "{{ entrees.champs.form_adulte1Telephone1 }}"
+      telephoneSecondaire: "{{ entrees.champs.form_adulte1Telephone2 }}"
+    comparaisons:
+      - { nomChamp: Prénom, valeur: "{{ formaterNom(entrees.champs.form_adulte1Prenom) }}", champGdi: Prenom, type: texte, poids: 10 }
+      - { nomChamp: Nom, valeur: "{{ formaterNom(entrees.champs.form_adulte1NomFamille) }}", champGdi: Nom, type: texte, poids: 10 }
+      - { nomChamp: Sexe, valeur: "{{ sousChaine(entrees.champs.form_adulte1Sexe, 0, 1) }}", champGdi: CodeSexe, type: texte, poids: 0 }
+      - { nomChamp: Code Postal, valeur: "{{ remplacer(entrees.champs.form_adulte1Adresse_0_CodePostal, ' ', '') }}", champGdi: AdressePermanente.CodePostal, type: texte, poids: 5 }
+      - { nomChamp: Date de naissance, valeur: "{{ entrees.champs.form_adulte1DateNaissance }}", champGdi: DateNaissance, type: dateHeure, poids: 10 }
+      - { nomChamp: CP12, valeur: "{{ entrees.champs.form_adulte1Cp12 }}", champGdi: CP12, type: texte, poids: 0, comparer: "{{ variables.estAFDR }}" }
+      - { nomChamp: NAM, valeur: "{{ entrees.champs.form_adulte1Nam }}", champGdi: NAM, type: texte, poids: 0, comparer: "{{ variables.estAFDR }}" }
+      - { nomChamp: NAS, valeur: "{{ formaterNAS(entrees.champs.form_adulte1Nas1) + formaterNAS(entrees.champs.form_adulte1Nas2) }}", champGdi: NAS, type: texte, poids: 0 }
+    seuilGdi: 100
+    seuilVirq: 100
+    creer: true
+    retry: { tentatives: 3, delai: 00:00:10, backoff: 2 }
+    suivant: resultatGdi
+
+  - id: resultatGdi
+    type: definir
+    variables:
+      possedeGDI: "{{ etapes.apparier.sortie.resultat == 'Unique' }}"
+    suivant:
+      - si: "{{ variables.possedeGDI }}"
+        aller: dossierAnterieur
+      - sinon: documents
+
+  # validerDossierAnterieur : ASF allégé, INE, code secteur emploi (seulement si l'individu est apparié).
+  - id: dossierAnterieur
+    type: validerDossierAnterieur
+    noGdi: "{{ etapes.apparier.sortie.noGdi }}"
+    retry: { tentatives: 3, delai: 00:00:10, backoff: 2 }
+    suivant: documents
+
+  # chargerFichiersBruts + chargerFichiersFRW + chargerPJDepotECS
+  - id: documents
+    type: chargerDocuments
+    statut: Préparation des documents
+    documents: "{{ entrees.documents }}"
+    fichiersBruts: "{{ entrees.fichiersBruts }}"
+    langue: "{{ entrees.langue }}"
+    fichiersFrw: true
+    pjDepotEcs: true
+    piecesJointes:
+      3003_01_A1_AFDR: { fr: "FO-3003-01-A1-AFDR-FR-{{ entrees.ide }}.pdf", en: "FO-3003-01-A1-AFDR-EN-{{ entrees.ide }}.pdf" }
+      3003_01_A1_EQ: { fr: "FO-3003-01-A1-EQ-FR-{{ entrees.ide }}.pdf", en: "FO-3003-01-A1-EQ-EN-{{ entrees.ide }}.pdf" }
+      3003_01_A2: { fr: "FO-3003-01-A2-FR-{{ entrees.ide }}.pdf", en: "FO-3003-01-A2-EN-{{ entrees.ide }}.pdf" }
+      3003_02AFDR: { fr: "FO-3003-02-FR-{{ entrees.ide }}.pdf", en: "FO-3003-02-EN-{{ entrees.ide }}.pdf" }
+      3003_03AFDR: { fr: "FO-3003-03-FR-{{ entrees.ide }}.pdf", en: "FO-3003-03-EN-{{ entrees.ide }}.pdf" }
+      DroitsObligations: { fr: DroitsEtObligations.pdf, en: RightsAndObligations.pdf }
+      RenseignementsEssentiels: { fr: RenseignementsEssentiels.pdf, en: ImportantInformation.pdf }
+    retry: { tentatives: 3, delai: 00:00:10, backoff: 2 }
+    suivant: pageGarde
+
+  # genererPDFGarde (GCO219, sans fusion : TRINFO)
+  - id: pageGarde
+    type: genererPageGarde
+    gabarit: PageGarde.docx
+    titre: Formulaire en ligne 3003
+    sousTitre: "Demande {{ variables.typeDemande }}"
+    identite: "{{ entrees.contexteECS }}"
+    documents: "{{ etapes.documents.sortie.documents }}"
+    fusionner: false
+    nomFichier: Confirmation_Authentification.pdf
+    retry: { tentatives: 3, delai: 00:00:10, backoff: 2 }
+    suivant: liens
+
+  # Liens chiffrés par ECS (page d'avancement, consultation des documents) et secret GED partagé.
+  - id: liens
+    type: http
+    requete: liens-ecs.yml
+    donnees: { ide: "{{ entrees.ide }}", langue: "{{ entrees.langue }}" }
+    retry: { tentatives: 3, delai: 00:00:10, backoff: 2 }
+    suivant: ged
+
+  # envoieMultipleGED. {nomFichierOriginal} et {dateEmission} sont remplacés par le service, document par document.
+  - id: ged
+    type: deposerGed
+    statut: Dépôt à la GED
+    langue: "{{ entrees.langue }}"
+    documents:
+      - "{{ etapes.documents.sortie.documents }}"
+      - "{{ etapes.pageGarde.sortie.document }}"
+    individu: { noGdi: "{{ etapes.apparier.sortie.noGdi }}", cp12: "{{ entrees.champs.form_adulte1Cp12 }}" }
+    # default.config.yml (.bak) : mode GED permanente et clé secrète de consultation.
+    informationsSupplementaires:
+      ForcerModeGEDPermanente: "true"
+      SignalementRequis: "{{ variables.estBureauDecloisonne }}"
+      CleSecrete: "{{ etapes.liens.sortie.secretGed }}"
+    envois:
+      - actif: "{{ variables.estAFDR }}"
+        filtres: { nomOriginal: ["FO-3003-01-A1-AFDR-FR-{{ entrees.ide }}.pdf", "FO-3003-01-A1-AFDR-EN-{{ entrees.ide }}.pdf"] }
+        sujet: { fr: Demande d'aide financière de dernier recours (Adulte 1), en: Application for last-resort financial assistance (Adult 1) }
+        type: F300301
+        informationsSupplementaires: { FICHORIG: "{nomFichierOriginal}", TITREGED: "3003-01 transmis le {dateEmission}", NOFORGED: 3003-01 }
+        indAffichageClient: true
+        lignesAffaires: [ASF]
+      - actif: "{{ variables.estEQ }}"
+        filtres: { nomOriginal: ["FO-3003-01-A1-EQ-FR-{{ entrees.ide }}.pdf", "FO-3003-01-A1-EQ-EN-{{ entrees.ide }}.pdf"] }
+        sujet: { fr: Demande de services d’emploi (Adulte 1), en: Application for employment assistance services (Adult 1) }
+        type: F300301
+        informationsSupplementaires: { FICHORIG: "{nomFichierOriginal}", TITREGED: "3003-01 transmis le {dateEmission}", NOFORGED: 3003-01 }
+        indAffichageClient: "{{ !variables.estAFDRetEQ }}"
+        lignesAffaires: [EQ]
+      - actif: true
+        filtres: { nomOriginal: ["FO-3003-01-A2-FR-{{ entrees.ide }}.pdf", "FO-3003-01-A2-EN-{{ entrees.ide }}.pdf"] }
+        sujet:
+          fr: '{{ si(variables.estAFDR, "Demande d''aide financière de dernier recours (Adulte 2)", "Demande de services d’emploi (Adulte 2)") }}'
+          en: "{{ si(variables.estAFDR, 'Application for last-resort financial assistance (Adult 2)', 'Application for employment assistance services (Adult 2)') }}"
+        type: F300301
+        informationsSupplementaires: { FICHORIG: "{nomFichierOriginal}", TITREGED: "3003-01 transmis le {dateEmission}", NOFORGED: 3003-01 }
+        indAffichageClient: true
+        lignesAffaires: ["{{ si(variables.estEQ, 'EQ', '') }}", "{{ si(variables.estAFDR, 'ASF', '') }}"]
+      - actif: "{{ variables.estAFDR }}"
+        filtres: { nomOriginal: ["FO-3003-02-FR-{{ entrees.ide }}.pdf", "FO-3003-02-EN-{{ entrees.ide }}.pdf"] }
+        sujet: { fr: Demande d'aide financière de dernier recours, en: Application for last-resort financial assistance }
+        type: F300302
+        informationsSupplementaires: { FICHORIG: "{nomFichierOriginal}", TITREGED: "3003-02 transmis le {dateEmission}", NOFORGED: 3003-02 }
+        indAffichageClient: true
+        lignesAffaires: [ASF]
+      - actif: "{{ variables.estAFDR }}"
+        filtres: { nomOriginal: ["FO-3003-03-FR-{{ entrees.ide }}.pdf", "FO-3003-03-EN-{{ entrees.ide }}.pdf"] }
+        sujet: { fr: Demande d'aide financière de dernier recours (Annexe - Enfants à charge), en: Application for last-resort financial assistance (Appendix - Dependent Children) }
+        type: F300303
+        informationsSupplementaires: { FICHORIG: "{nomFichierOriginal}", TITREGED: "3003-03 transmis le {dateEmission}", NOFORGED: 3003-03 }
+        indAffichageClient: true
+        lignesAffaires: [ASF]
+      - actif: true
+        filtres: { source: [genererPageGarde] }
+        sujet: { fr: "Informations liées à la transmission de documents du citoyen le {dateEmission}", en: "Information on the submission of documents by the citizen on {dateEmission}" }
+        type: DOCINTRN
+        indAffichageClient: false
+        lignesAffaires: ["{{ si(variables.estEQ, 'EQ', '') }}", "{{ si(variables.estAFDR, 'ASF', '') }}"]
+        langue: F
+      - actif: true
+        filtres: { source: [chargerFichiersFrw] }
+        sujet: { fr: "Document transmis par le citoyen le {dateEmission}", en: "Document sent by the citizen on {dateEmission}" }
+        type: "{metadonnees.TypeDocument}"
+        informationsSupplementaires: { FICHORIG: "{nomFichierOriginal}" }
+        indAffichageClient: true
+        lignesAffaires: ["{metadonnees.LigneAffaire}"]
+    retry: { tentatives: 5, delai: 00:00:30, backoff: 2 }
+    suivant:
+      # Bureau décloisonné : pas de boîte générique, GED212 crée une tâche au GAA (SignalementRequis).
+      - si: "{{ variables.estBureauDecloisonne && vide(entrees.courrielClient) }}"
+        aller: conserver
+      - si: "{{ variables.estBureauDecloisonne }}"
+        aller: confirmation
+      - sinon: boite
+
+  # envoyerBoiteGenerique : premier bloc applicable (ordre de la configuration ECS25A).
+  - id: boite
+    type: boiteGenerique
+    gabarit: traitement-par-region
+    langue: "{{ entrees.langue }}"
+    blocs:
+      - si: "{{ entrees.champs.form_adulte1EstDemandeurAsile == 'true' && variables.estAFDR }}"
+        a: { unitaire: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA, production: CENTRE.DEMANDEURS.ASILE@servicesquebec.gouv.qc.ca }
+        suffixeObjet: (Demandeur d'asile)
+      - si: "{{ variables.regionAdmin == 'XX' }}"
+        gabarit: rejet-code-postal
+        a: { unitaire: ESUN-A05@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A05@ESSAIS.MESS.GOUV.QC.CA, techno: ESIT-A01@ESSAIS.MESS.GOUV.QC.CA, production: traitement.regulier@mess.gouv.qc.ca }
+      - si: "{{ variables.regionAdmin == '03' && variables.estAFDR }}"
+        a: { unitaire: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA, production: dr03.demandes.afdr@servicesquebec.gouv.qc.ca }
+        suffixeObjet: (AFDR)
+      - si: "{{ variables.regionAdmin == '03' && variables.estEQ }}"
+        a: { unitaire: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A04@ESSAIS.MESS.GOUV.QC.CA, production: dr03.demandes.emploi@mess.gouv.qc.ca }
+        suffixeObjet: (EQ)
+      - si: "{{ variables.regionAdmin == '04' && variables.estAFDR }}"
+        a: { unitaire: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA, production: CAI@servicesquebec.gouv.qc.ca }
+        suffixeObjet: (AFDR)
+      - si: "{{ variables.regionAdmin == '09' && variables.estAFDR }}"
+        a: { unitaire: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA, production: cle.baie-comeau@servicesquebec.gouv.qc.ca }
+        suffixeObjet: (AFDR)
+      - si: "{{ variables.regionAdmin == '10' && variables.estAFDR }}"
+        a: { unitaire: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA, production: sq.nord.quebec@servicesquebec.gouv.qc.ca }
+        suffixeObjet: (AFDR)
+      - si: "{{ variables.regionAdmin == '12' && variables.estAFDR }}"
+        a: { unitaire: ESUN-A01@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA, production: CLE.STE-MARIE-DE-BEAUCE@servicesquebec.gouv.qc.ca }
+        suffixeObjet: (AFDR)
+      - si: "{{ variables.regionAdmin == '12' && variables.estEQ && contient('032 074 076', variables.cleJuridictionCP) }}"
+        a: { unitaire: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA, production: dgsq.0312.dsti.bsq074.076.demandes@servicesquebec.gouv.qc.ca }
+        suffixeObjet: (EQ)
+      - si: "{{ variables.regionAdmin == '13' && variables.estAFDR }}"
+        a: { unitaire: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA, production: CAI@servicesquebec.gouv.qc.ca }
+        suffixeObjet: (AFDR)
+      - si: "{{ variables.regionAdmin == '14' && variables.estAFDR }}"
+        a: { unitaire: ESUN-A01@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA, production: CLE166@servicesquebec.gouv.qc.ca }
+        suffixeObjet: (AFDR)
+      - si: "{{ variables.regionAdmin == '17' && variables.estAFDR }}"
+        a: { unitaire: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA, acceptation: ESAC-A03@ESSAIS.MESS.GOUV.QC.CA, production: CLE224@servicesquebec.gouv.qc.ca }
+        suffixeObjet: (AFDR)
+      # Sinon : boîte du CLE de juridiction du code postal (table BSQ du palier).
+      - bsq: { table: "courriels.BSQ.{palier}.yml", cle: "{{ variables.cleJuridictionCP }}", region: "{{ variables.regionAdmin }}" }
+    suivant:
+      - si: "{{ vide(entrees.courrielClient) }}"
+        aller: conserver
+      - sinon: confirmation
+
+  # envoyerConfirmationClient. Pièces jointes (Droits et obligations, Renseignements essentiels) : non prises en charge par OIM pour l'instant.
+  - id: confirmation
+    type: courriel
+    gabarit: confirmation-client
+    a: "{{ entrees.courrielClient }}"
+    langue: "{{ entrees.langue }}"
+    retry: { tentatives: 3, delai: 00:00:30, backoff: 2 }
+    siErreur: conserver
+    suivant: conserver
+
+  # conserverInfoTransmission : suivi de la demande dans l'espace client (état RECU).
+  - id: conserver
+    type: http
+    requete: conserver-transmission.yml
+    donnees:
+      codeObjetTransmission: 3003
+      ide: "{{ entrees.ide }}"
+      noGdi: "{{ etapes.apparier.sortie.noGdi }}"
+      langue: "{{ entrees.langue }}"
+      etat: RECU
+      dateEtat: "{{ instance.debut }}"
+      cles:
+        LigneAffaire: "{{ variables.equipe }}"
+        Courriel: "{{ entrees.courrielClient }}"
+        CodePostal: "{{ variables.codePostal }}"
+    retry: { tentatives: 5, delai: 00:00:30, backoff: 2 }
+    suivant: repondre
+
+  # infosSortie
+  - id: repondre
+    type: reponse
+    statut: Demande transmise
+    corps:
+      ide: "{{ entrees.ide }}"
+      codePostal: "{{ variables.codePostal }}"
+      regionAdmin: "{{ variables.regionAdmin }}"
+      cleJuridictionCP: "{{ variables.cleJuridictionCP }}"
+      possedeGDI: "{{ variables.possedeGDI }}"
+      ligneAffaire: "{{ variables.ligneAffaire }}"
+      estBureauDecloisonne: "{{ variables.estBureauDecloisonne }}"
+      echecConfirmationCourriel: "{{ !vide(etapes.confirmation.erreur) }}"
+    fin: true

@@ -24,6 +24,9 @@ namespace OIM.Moteur.Orchestration.Activites;
 /// </code>
 /// Le sujet et le corps sont des gabarits Handlebars sur le contexte du processus
 /// (entrees, etapes, variables, evenement…), complété par les <c>donnees</c> de l'étape.
+/// <c>de</c>, <c>a</c>, <c>cc</c>, <c>sujet</c> et <c>corps</c> peuvent être déclinés par palier
+/// (<c>{ unitaire: …, production: … }</c>, <see cref="OptionsOim.Palier"/>) ou par langue (<c>{ fr: …, en: … }</c>,
+/// propriété <c>langue</c> de l'étape), comme dans les configurations ECS25A.
 /// </summary>
 public sealed class CourrielActivite(IDepotDefinitions depot, IOptions<OptionsOim> options, ILogger<CourrielActivite> journal)
     : ActiviteJson
@@ -34,6 +37,7 @@ public sealed class CourrielActivite(IDepotDefinitions depot, IOptions<OptionsOi
     protected override async Task<JsonNode?> ExecuterAsync(TaskContext contexte, JsonObject p)
     {
         var reglages = options.Value.Courriel;
+        var reglagesPalier = options.Value.Palier;
         var id = Requis(p, "definitionId");
         var version = p["version"]!.GetValue<int>();
         var nomGabarit = Requis(p, "gabarit");
@@ -46,8 +50,9 @@ public sealed class CourrielActivite(IDepotDefinitions depot, IOptions<OptionsOi
                       ?? throw new ErreurProcessus($"Gabarit « {fichier.Chemin} » invalide.");
 
         var modele = Json.VersObjet(p["contexte"]) ?? new Dictionary<string, object?>();
+        var langue = p["langue"]?.GetValue<string>() is { Length: > 0 } l ? l.ToLowerInvariant() : "fr";
         string Rendre(IHandlebars hb, JsonNode? source) =>
-            source is null ? string.Empty : hb.Compile(Expression.EnTexte(source))(modele);
+            Variantes.Choisir(source, reglagesPalier, langue) is { } choisi ? hb.Compile(Expression.EnTexte(choisi))(modele) : string.Empty;
 
         var estHtml = !string.Equals(gabarit["format"]?.GetValue<string>(), "texte", StringComparison.OrdinalIgnoreCase);
         var sujet = Rendre(HandlebarsTexte, gabarit["sujet"]).ReplaceLineEndings(" ").Trim();

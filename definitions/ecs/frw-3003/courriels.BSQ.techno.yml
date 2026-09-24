@@ -1,0 +1,98 @@
+# Adresse de destination si la région est introuvable ou si la région ne souhaite pas traiter elle même les rejets.
+default: 
+    default: &courrielRejet
+        courriel: ESIT-A05@ESSAIS.MESS.GOUV.QC.CA
+
+# Bas St-Laurent
+01:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    001:
+        courriel: ESIT-A03@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESIT-A02@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Saguenay / Lac St-Jean
+02:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    bsqPrestationSpeciale:
+        courriel: ESIT-A02@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+        
+#Capitale-Nationale
+03:
+    services:
+        accompagnementQuebec: bsqAccompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    default:
+        << : *courrielRejet
+    003:
+        courriel: ESIT-A02@ESSAIS.MESS.GOUV.QC.CA
+    054:
+        courriel: ESIT-A03@ESSAIS.MESS.GOUV.QC.CA
+    055:
+        courriel: ESIT-A04@ESSAIS.MESS.GOUV.QC.CA
+    bsqAccompagnementQuebec:
+        courriel: ESIT-A05@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESIT-A02@ESSAIS.MESS.GOUV.QC.CA
+
+#Montréal
+06: &regionMontreal
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    297: 
+        services:
+            prestationSpeciale: bsqPrestationSpeciale297
+    bsqPrestationSpeciale:
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale297:
+        courriel: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+6A:
+    << : *regionMontreal
+6F:
+    << : *regionMontreal
+
+#CLE28
+28:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    default:
+        << : *courrielRejet
+    028:
+        courriel: ESIT-A01@ESSAIS.MESS.GOUV.QC.CA  
+    bsqPrestationSpeciale:
+      courriel: ESIT-A02@ESSAIS.MESS.GOUV.QC.CA  
+277:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    default:
+        << : *courrielRejet
+    277:
+        courriel: ESIT-A04@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESIT-A02@ESSAIS.MESS.GOUV.QC.CA  
+
+#Région 18 (CSC)
+18:
+    services:
+        prestationSpeciale:
+    default:
+        << : *courrielRejet
+
+#Permet de gérer les régions associées à des codes postaux inexistants. (Quand UNA ou RIR ne trouve pas de région)
+XX:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    bsqPrestationSpeciale:
+        courriel: ESIT-A03@ESSAIS.MESS.GOUV.QC.CA
+    XXX: #Permet de gérer un BSQ associé à des codes postaux inexistants.
+        << : *courrielRejet
+    default:
+        << : *courrielRejet

@@ -1,0 +1,585 @@
+# Adresse de destination si la région est introuvable ou si la région ne souhaite pas traiter elle même les rejets. (*cleRegion01)
+default: 
+    default: &courrielRejet
+        courriel: ESAC-A05@ESSAIS.MESS.GOUV.QC.CA
+
+# Bas St-Laurent
+01:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    019:
+        courriel: ESAC-A03@ESSAIS.MESS.GOUV.QC.CA
+    021:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    029:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    030:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    058:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    059:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    060:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    095:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    169:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    207:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Saguenay / Lac St-Jean
+02:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    001:
+        courriel: ESAC-A03@ESSAIS.MESS.GOUV.QC.CA
+    005: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    015: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    061: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    062: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    109: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    165:
+        services:
+            prestationSpeciale: bsqPrestationSpeciale165
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    172:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    189:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    320: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale165:
+        courriel: ESAC-A03@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+        
+#Capitale-Nationale
+03:
+    services:
+        accompagnementQuebec: bsqAccompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    007: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    018: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    028:
+        courriel: ESAC-A03@ESSAIS.MESS.GOUV.QC.CA
+    053: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    054:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    055:
+        courriel: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA
+    128: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    132: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    148: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    175: 
+        courriel: ESAC-A04@ESSAIS.MESS.GOUV.QC.CA
+    183:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqAccompagnementQuebec:
+        courriel: ESAC-A04@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A03@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+        
+#Mauricie
+04:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    038: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    042: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    051:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    052: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    065: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    070:
+        courriel: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA
+    124: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    125: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    160:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A03@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Estrie
+05:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    003: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    011:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    017: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    071: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    098: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    104: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    105: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    106: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    120: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    155: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    177: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    179:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Montréal
+06: &regionMontreal
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    063: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    064: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    069: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    091: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    092: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    094: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    103: &bsq103
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    141:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    142:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    162:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    164:
+        << : *bsq103
+    188:
+        << : *bsq103
+    193:
+        << : *bsq103
+    208:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    250: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    252: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    256: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    258: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    259: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    262: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    266: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    277: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    279: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    297:
+        services:
+            prestationSpeciale: bsqPrestationSpeciale297
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    299:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    300:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale297:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+6A:
+    << : *regionMontreal
+6F:
+    << : *regionMontreal
+
+#Outaouais
+07:
+    services:
+        accompagnementQuebec: 075
+        prestationSpeciale: bsqPrestationSpeciale
+    013: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    075: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    097: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    107: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    117: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    127: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    147: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    173:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    178:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Abitibi-Témiscamingue
+08:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    002: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    027: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    045: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    046: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    047: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    116: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    221:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    222: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Côte-Nord
+09:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    012: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    037: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    057: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    089: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    113: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    114: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    197:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Nord-du-Québec
+10:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    067: &cleRegion10
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    100: 
+        << : *cleRegion10
+    101: 
+        << : *cleRegion10
+    102: 
+        << : *cleRegion10
+    233: 
+        << : *cleRegion10
+    234:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    333:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *cleRegion10
+
+#Gaspésie / Iles de la Madeleine
+11:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    004: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    010: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    031: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    049: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    050: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    099: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    161:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    168:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Chaudiere / Appalaches
+12:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    020: &cleRegion12Levis
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    023: &cleRegion12Montmagny
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    032:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    041: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    074: &cleRegion12SaintGeorges
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    076: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    090: 
+        << : *cleRegion12Montmagny
+    137: 
+        << : *cleRegion12Levis
+    138: 
+        << : *cleRegion12Levis
+    157:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    184:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Laval
+13:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    006: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    096: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    146:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Lanaudière
+14:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    014: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    072: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    134: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    135: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    136: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    139: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    140: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    166:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    174:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    196:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    206:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Laurentides
+15:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    016:
+        courriel: ESAC-A04@ESSAIS.MESS.GOUV.QC.CA
+    022:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    035:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    066:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    118:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    129:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    144:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    145:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    167:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    181:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Montérégie
+16:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    008: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    024:
+        courriel: ESAC-A02@ESSAIS.MESS.GOUV.QC.CA
+    033: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    034: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    040: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    043: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    077: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    079: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    083: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    084: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    086: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    087: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    110: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    121: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    130: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    203: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    205: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    223: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A03@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Centre du Québec
+17:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    009: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    026: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    044: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    122: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    224: 
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    225:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+
+#Région 18 (CSC)
+18:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de prestationSpeciale
+    170: &cleCCC
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    171:
+        << : *cleCCC
+    190:
+        << : *cleCCC
+    191:
+        << : *cleCCC
+    default:
+        << : *courrielRejet
+
+#Région 98
+98:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de prestationSpeciale
+    default:
+        << : *courrielRejet
+
+#Permet de gérer les régions associées à des codes postaux inexistants. (Quand UNA ou RIR ne trouve pas de région)
+XX:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    bsqPrestationSpeciale:
+        courriel: ESAC-A03@ESSAIS.MESS.GOUV.QC.CA
+    BRT:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    SIM:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    SRE:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    SRO:
+        courriel: ESAC-A01@ESSAIS.MESS.GOUV.QC.CA
+    XXX: #Permet de gérer un BSQ associé à des codes postaux inexistants.
+        << : *courrielRejet
+    default:
+        << : *courrielRejet

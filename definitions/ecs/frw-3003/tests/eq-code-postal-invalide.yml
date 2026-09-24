@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../../../../schemas/cas-test.schema.json
+nom: EQ avec code postal introuvable — courriel de rejet
+entrees:
+  ide: "300312348"
+  champs:
+    form_TypeDemande_0: AideEmploi
+    form_adulte1Adresse_0_CodePostal: Z0Z 0Z0
+
+mocks:
+  # Service de localisation en échec : la région et la CLE prennent les valeurs XX / XXX (comme ECS25A).
+  localiser: { statut: 404, corps: { message: Code postal introuvable } }
+  apparier: { resultat: Aucun }
+  documents: { documents: [], pjManquantes: [], afficherPjManquantes: false }
+  pageGarde: { document: { nom: pg.pdf, nomOriginal: Confirmation_Authentification.pdf, source: genererPageGarde } }
+  liens: { statut: 200, corps: { secretGed: s, urlAvancement: { fr: "https://a", en: "https://a" }, urlDocuments: { ASF: "https://d", EQ: "https://d" } } }
+  ged: { soumissions: [] }
+  conserver: { statut: 200, corps: {} }
+
+attendu:
+  statut: Completed
+  variables: { regionAdmin: XX, cleJuridictionCP: XXX, estCodePostalInvalide: true, estBureauDecloisonne: false }
+  sorties:
+    boite: { index: 1, source: conditions, a: ESUN-A05@ESSAIS.MESS.GOUV.QC.CA }
+  courriels:
+    - gabarit: gabarits/rejet-code-postal.yml
+      a: [ESUN-A05@ESSAIS.MESS.GOUV.QC.CA]

@@ -148,6 +148,56 @@ public static class ValidateurDefinition
             case CatalogueEtapes.Definir when etape.Valeur("variables") is not JsonObject:
                 d.Add(Err("« variables » doit être un dictionnaire nom → valeur.", etape.Id));
                 break;
+
+            case CatalogueEtapes.GenererPageGarde or CatalogueEtapes.DeposerGed or CatalogueEtapes.ChargerDocuments
+                or CatalogueEtapes.ApparierGdi or CatalogueEtapes.ValiderDossierAnterieur:
+                if (etape.Type == CatalogueEtapes.DeposerGed && etape.Valeur("envois") is not JsonArray)
+                    d.Add(Err("« envois » doit être une liste d'envois GED.", etape.Id));
+                break;
+
+            case CatalogueEtapes.BoiteGenerique:
+                ValiderBoiteGenerique(etape, paquet, d);
+                break;
+        }
+    }
+
+    private static void ValiderBoiteGenerique(Etape etape, PaquetDefinition paquet, List<Diagnostic> d)
+    {
+        void VerifierGabarit(string? nom)
+        {
+            if (nom is null || Gabarit.ContientExpression(nom)) return;
+            if (paquet.TrouverGabarit(nom) is not { } g)
+                d.Add(Err($"Gabarit de courriel « {nom} » introuvable dans le paquet (attendu : gabarits/{nom}.yml).", etape.Id));
+            else
+                ValiderGabaritCourriel(g.Chemin, g.Contenu, etape, d);
+        }
+
+        VerifierGabarit(etape.Texte("gabarit"));
+        if (etape.Valeur("blocs") is not JsonArray blocs || blocs.Count == 0)
+        {
+            d.Add(Err("« blocs » doit être une liste non vide de blocs { si, a | bsq, gabarit?, suffixeObjet? }.", etape.Id));
+            return;
+        }
+        for (var i = 0; i < blocs.Count; i++)
+        {
+            if (blocs[i] is not JsonObject bloc)
+            {
+                d.Add(Err($"Bloc {i + 1} : un objet est attendu.", etape.Id));
+                continue;
+            }
+            if (bloc["a"] is null && bloc["bsq"] is null)
+                d.Add(Err($"Bloc {i + 1} : « a » (adresse ou adresses par palier) ou « bsq » est requis.", etape.Id));
+            if (bloc["bsq"] is JsonObject bsq)
+            {
+                var table = LecteurDefinition.Texte(bsq, "table");
+                if (table is null || LecteurDefinition.Texte(bsq, "cle") is null)
+                    d.Add(Err($"Bloc {i + 1} : « bsq » exige « table » et « cle ».", etape.Id));
+                else if (!table.Contains("{palier}") && !Gabarit.ContientExpression(table) && paquet.TrouverFichier(table) is null)
+                    d.Add(Err($"Bloc {i + 1} : table BSQ « {table} » introuvable dans le paquet.", etape.Id));
+                else if (table.Contains("{palier}") && !paquet.Fichiers.Keys.Any(f => f.StartsWith(table[..table.IndexOf("{palier}")], StringComparison.OrdinalIgnoreCase)))
+                    d.Add(Err($"Bloc {i + 1} : aucune table « {table} » dans le paquet.", etape.Id));
+            }
+            VerifierGabarit(LecteurDefinition.Texte(bloc, "gabarit"));
         }
     }
 
@@ -179,7 +229,8 @@ public static class ValidateurDefinition
             }
             if (o["sujet"] is null) d.Add(Err($"Gabarit « {chemin} » : « sujet » manquant.", etape.Id));
             if (o["corps"] is null) d.Add(Err($"Gabarit « {chemin} » : « corps » manquant.", etape.Id));
-            if (o["a"] is null && etape.Valeur("a") is null)
+            // boiteGenerique : le destinataire est l'adresse de la boîte retenue.
+            if (o["a"] is null && etape.Valeur("a") is null && etape.Type != CatalogueEtapes.BoiteGenerique)
                 d.Add(Err($"Aucun destinataire : ni « a » dans l'étape, ni dans le gabarit « {chemin} ».", etape.Id));
         }
         catch (Exception ex)
@@ -224,8 +275,8 @@ public static class ValidateurDefinition
         foreach (var (etape, _) in cas.Mocks)
             if (def.TrouverEtape(etape) is not { } e)
                 d.Add(Err($"Test « {chemin} » : mock pour l'étape inexistante « {etape} »."));
-            else if (e.Type is not (CatalogueEtapes.Http or CatalogueEtapes.SousProcessus))
-                d.Add(Avert($"Test « {chemin} » : mock inutile pour « {etape} » (seules les étapes http et sousProcessus sont simulées par mock)."));
+            else if (!EstSimulee(e.Type))
+                d.Add(Avert($"Test « {chemin} » : mock inutile pour « {etape} » (seules les étapes http, sousProcessus et de service sont simulées par mock)."));
 
         foreach (var action in cas.Scenario)
             if (def.TrouverEtape(action.Attendre) is not { } e)
@@ -233,9 +284,13 @@ public static class ValidateurDefinition
             else if (e.Type != CatalogueEtapes.AttendreEvenement)
                 d.Add(Err($"Test « {chemin} » : « {action.Attendre} » n'est pas une étape attendreEvenement."));
 
-        foreach (var e in def.Etapes.Where(e => e.Type is CatalogueEtapes.Http or CatalogueEtapes.SousProcessus && !cas.Mocks.ContainsKey(e.Id)))
+        foreach (var e in def.Etapes.Where(e => EstSimulee(e.Type) && !cas.Mocks.ContainsKey(e.Id)))
             d.Add(Avert($"Test « {chemin} » : pas de mock pour « {e.Id} » : le cas échouera s'il passe par cette étape."));
     }
+
+    /// <summary>Étapes remplacées par un mock en mode test (appels externes).</summary>
+    private static bool EstSimulee(string type) =>
+        type is CatalogueEtapes.Http or CatalogueEtapes.SousProcessus || CatalogueEtapes.TypesService.Contains(type);
 
     private static Diagnostic Err(string m, string? etape = null) => new(Diagnostic.Erreur, m, etape);
     private static Diagnostic Avert(string m, string? etape = null) => new(Diagnostic.Avertissement, m, etape);

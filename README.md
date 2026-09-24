@@ -132,6 +132,14 @@ etapes:
 | `definir` | `variables: { nom: valeur }` | — (état de l'orchestration) |
 | `sousProcessus` | `processus`, `version`, `entrees` | `CreateSubOrchestrationInstance` (+ `retry`) |
 | `reponse` | `statutHttp` (défaut 200), `corps` | statut personnalisé lu par l'API — le processus continue |
+| `boiteGenerique` | `blocs` (`si`, `a` par palier ou `bsq { table, cle, region }`, `gabarit`, `suffixeObjet`), `gabarit`, `langue`, `donnees` | activités `oim.resoudreBoite` puis `oim.courriel` : premier bloc applicable, table BSQ du paquet (`{palier}` dans le nom) |
+| `chargerDocuments`, `apparierGdi`, `validerDossierAnterieur`, `genererPageGarde`, `deposerGed` | voir `schemas/processus.schema.json` | activité `oim.service` : POST des propriétés résolues vers `Oim:Services:<type>:Url`; `mocks` en test |
+
+Les cinq derniers types (reprise d'ECS25A, exemple `definitions/ecs/frw-3003`) ne sont que des **contrats** :
+les services qui les exécutent (GDI, GED/GCO228, GCO219, dossier antérieur, documents) restent à exposer.
+Les documents circulent en **références**, jamais en octets dans l'historique.
+Dans un courriel, `de`, `a`, `cc`, `sujet` et `corps` peuvent être déclinés par palier (`{ unitaire, production, tous, defaut }`)
+ou par langue (`{ fr, en }`).
 
 Propriétés communes : `statut` (statut métier affiché), `message` (retourné au client, évalué
 après l'étape), `suivant`, `fin`, `siErreur`, `retry { tentatives, delai, backoff, delaiMax }`.
@@ -162,7 +170,8 @@ sinon les expressions sont interpolées en texte.
 
 Opérateurs : `== != > < >= <=`, `&& || !` (ou `et ou non`), `+ - * / %`, `a ?? b`, `c ? a : b`.
 Fonctions : `longueur`, `vide`, `contient`, `commencePar`, `minuscule`, `majuscule`, `texte`,
-`nombre`, `arrondi`, `premier`, `joindre`, `json`, `ajouterJours`, `ajouterHeures`, `formaterDate`.
+`nombre`, `arrondi`, `premier`, `joindre`, `json`, `ajouterJours`, `ajouterHeures`, `formaterDate`,
+`si(cond, a, b)`, `sousChaine(x, debut, longueur?)`, `remplacer(x, a, b)`, `formaterNom` (majuscules sans accents), `formaterNAS`.
 Les expressions sont **pures** (aucune horloge, aucun accès externe) : c'est ce qui les rend
 sûres lors des relectures DurableTask.
 
@@ -347,6 +356,8 @@ Les en-têtes `X-Oim-Instance` et `Location` donnent toujours l'instance. L'atte
 | `Courriel:Hote/Port/Ssl/Utilisateur/MotDePasse/De` | | SMTP |
 | `Courriel:DossierDepot` | | écrit des `.eml` au lieu d'envoyer |
 | `Courriel:RedirigerVers` | | redirige tous les courriels (environnements de test) |
+| `Palier` | `unitaire` | palier courant (`unitaire`, `acceptation`, `techno`, `production`) : variantes des courriels, tables BSQ |
+| `Services:<type>:Url`, `UtiliserIdentiteWindows`, `Delai` | | services des étapes `chargerDocuments`, `apparierGdi`, `validerDossierAnterieur`, `genererPageGarde`, `deposerGed` |
 | `Tests:AuDeploiement` | `Bloquant` | tests métier au déploiement : `Bloquant`, `Avertissement`, `Desactive` |
 | `Securite:Active` | `true` | jeton Bearer exigé sur `/api` (`false` : aucun jeton, l'appelant est administrateur) |
 | `Securite:Administrateurs` | `[]` | sujets administrateurs OIM (ex. `MES\gr_oim_admin`) |

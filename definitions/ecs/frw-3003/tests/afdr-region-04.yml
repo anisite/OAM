@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=../../../../schemas/cas-test.schema.json
+nom: AFDR en Mauricie (région 04) avec dossier GDI
+entrees:
+  ide: "300312345"
+  langue: fr
+  courrielClient: citoyen@exemple.com
+  champs:
+    form_TypeDemande_0: Afdr
+    form_adulte1NomFamille: Tremblay
+    form_adulte1Prenom: Émilie
+    form_adulte1DateNaissance: "1990-04-12"
+    form_adulte1Sexe: Feminin
+    form_adulte1Nas1: "123 456"
+    form_adulte1Nas2: "789"
+    form_adulte1Adresse_0_CodePostal: G9A 1A1
+  documents:
+    - { nomEncode: abc123, nomOriginal: releve.pdf, metadonnees: { TypeDocument: RELBANC, LigneAffaire: ASF } }
+  fichiersBruts:
+    - { nom: 3003_01_A1_AFDR, reference: brut-1 }
+
+mocks:
+  localiser: { statut: 200, corps: { region: "04", cleJuridiction: "045", decloisonne: { ASF: false, EQ: false } } }
+  apparier: { resultat: Unique, noGdi: 1234567, cp12: "123456789012" }
+  dossierAnterieur: { asf: { presence: true }, ine: { presence: false }, codeSecteur: "" }
+  documents:
+    documents:
+      - { nom: d1.pdf, nomOriginal: FO-3003-01-A1-AFDR-FR-300312345.pdf, source: chargerFichiersBruts }
+      - { nom: d2.pdf, nomOriginal: releve.pdf, source: chargerFichiersFrw, metadonnees: { TypeDocument: RELBANC, LigneAffaire: ASF } }
+    pjManquantes: [Preuve de revenus]
+    afficherPjManquantes: true
+  pageGarde: { document: { nom: pg.pdf, nomOriginal: Confirmation_Authentification.pdf, source: genererPageGarde } }
+  liens:
+    statut: 200
+    corps:
+      secretGed: secret-1
+      urlAvancement: { fr: "https://mondossier/Suivis/AvancementDemande?no=x", en: "https://mondossier/en/Suivis/AvancementDemande?no=x" }
+      urlDocuments: { ASF: "https://ged/asf", EQ: "https://ged/eq" }
+  ged: { soumissions: [{ type: F300301 }, { type: DOCINTRN }, { type: RELBANC }] }
+  conserver: { statut: 200, corps: {} }
+
+attendu:
+  statut: Completed
+  parcours: [localiser, calcules, calculesFinaux, decloisonnement, apparier, resultatGdi, dossierAnterieur, documents, pageGarde, liens, ged, boite, confirmation, conserver, repondre]
+  variables: { regionAdmin: "04", estAFDR: true, estEQ: false, estAFDRSeul: true, ligneAffaire: ASF, possedeGDI: true, estBureauDecloisonne: false }
+  sorties:
+    boite: { source: conditions, a: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA, suffixeObjet: (AFDR), envoye: true }
+  courriels:
+    - gabarit: gabarits/traitement-par-region.yml
+      a: [ESUN-A02@ESSAIS.MESS.GOUV.QC.CA]
+    - gabarit: gabarits/confirmation-client.yml
+      a: [citoyen@exemple.com]
+      sujet: Accusé de réception de votre demande d’aide financière
+  reponse:
+    statutHttp: 200
+    corps: { ide: "300312345", regionAdmin: "04", cleJuridictionCP: "045", possedeGDI: true, ligneAffaire: ASF, estBureauDecloisonne: false }

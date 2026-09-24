@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=../../../../schemas/cas-test.schema.json
+nom: Demandeur d'asile (AFDR) vers le centre des demandeurs d'asile
+entrees:
+  ide: "300312346"
+  courrielClient: asile@exemple.com
+  champs:
+    form_TypeDemande_0: Afdr
+    form_adulte1EstDemandeurAsile: "true"
+    form_adulte1NomFamille: Nguyen
+    form_adulte1Prenom: An
+    form_adulte1Adresse_0_CodePostal: H2X 1Y4
+
+mocks:
+  localiser: { statut: 200, corps: { region: "06", cleJuridiction: "090", decloisonne: { ASF: false, EQ: false } } }
+  apparier: { resultat: Aucun }
+  documents: { documents: [], pjManquantes: [], afficherPjManquantes: false }
+  pageGarde: { document: { nom: pg.pdf, nomOriginal: Confirmation_Authentification.pdf, source: genererPageGarde } }
+  liens: { statut: 200, corps: { secretGed: s, urlAvancement: { fr: "https://a", en: "https://a" }, urlDocuments: { ASF: "https://d", EQ: "https://d" } } }
+  ged: { soumissions: [] }
+  conserver: { statut: 200, corps: {} }
+
+attendu:
+  statut: Completed
+  parcours: [localiser, calcules, calculesFinaux, decloisonnement, apparier, resultatGdi, documents, pageGarde, liens, ged, boite, confirmation, conserver, repondre]
+  sorties:
+    boite: { index: 0, a: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA, suffixeObjet: (Demandeur d'asile) }
+  courriels:
+    - gabarit: gabarits/traitement-par-region.yml
+      a: [ESUN-A02@ESSAIS.MESS.GOUV.QC.CA]
+    - gabarit: gabarits/confirmation-client.yml
+      a: [asile@exemple.com]
+  reponse: { corps: { possedeGDI: false, ligneAffaire: ASF } }

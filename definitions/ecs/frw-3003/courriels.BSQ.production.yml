@@ -1,0 +1,585 @@
+# Adresse de destination si la région est introuvable ou si la région ne souhaite pas traiter elle même les rejets. (*cleRegion01)
+default: 
+    default: &courrielRejet
+        courriel: traitement.regulier@mess.gouv.qc.ca
+
+# Bas St-Laurent
+01:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    019: #&cleRegion01
+        courriel: cle.lapocatiere@servicesquebec.gouv.qc.ca
+    021:
+        courriel: cle.matane@servicesquebec.gouv.qc.ca
+    029:
+        courriel: CLE.RIMOUSKI-NEIGETTE@servicesquebec.gouv.qc.ca
+    030:
+        courriel: cle.riviere-du-loup@servicesquebec.gouv.qc.ca
+    058:
+        courriel: cle.amqui@servicesquebec.gouv.qc.ca
+    059:
+        courriel: cle.temiscouata@servicesquebec.gouv.qc.ca
+    060:
+        courriel: cle.mont-joli@servicesquebec.gouv.qc.ca
+    095:
+        courriel: cle.trois-pistoles@servicesquebec.gouv.qc.ca
+    207:
+        courriel: ctafdr.bsl@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Saguenay / Lac St-Jean
+02:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    001: 
+        courriel: cle.lac-st-jean.est@servicesquebec.gouv.qc.ca
+    005: 
+        courriel: cle.chicoutimi@servicesquebec.gouv.qc.ca
+    015: 
+        courriel: cle.jonquiere@servicesquebec.gouv.qc.ca
+    061: 
+        courriel: cle.maria-chapdelaine@servicesquebec.gouv.qc.ca
+    062: 
+        courriel: cle.roberval@servicesquebec.gouv.qc.ca
+    109: 
+        courriel: cle.la-baie@servicesquebec.gouv.qc.ca
+    165:
+        courriel: cle165@servicesquebec.gouv.qc.ca
+    320: 
+        courriel: bsq320@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+        
+#Capitale-Nationale
+03:
+    services:
+        accompagnementQuebec: bsqAccompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    007: 
+        courriel: cle.portneuf@servicesquebec.gouv.qc.ca
+    018: 
+        courriel: cle.malbaie@servicesquebec.gouv.qc.ca
+    028: 
+        courriel: cle.quartiers-historiques@servicesquebec.gouv.qc.ca
+    053: 
+        courriel: bsq.charlesbourg@servicesquebec.gouv.qc.ca
+    054: 
+        courriel: CLE.BEAUPORT@servicesquebec.gouv.qc.ca
+    055: 
+        courriel: CAR055@servicesquebec.gouv.qc.ca
+    128: 
+        courriel: CLE.BAIE-ST-PAUL@servicesquebec.gouv.qc.ca
+    132: 
+        courriel: cle.ste-foy@servicesquebec.gouv.qc.ca
+    148: 
+        courriel: CLE.BEAUPORT@servicesquebec.gouv.qc.ca
+    175: 
+        courriel: pal175@servicesquebec.gouv.qc.ca
+    bsqAccompagnementQuebec:
+        courriel: dr03.demandes.emploi@mess.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+        
+#Mauricie
+04:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    038: 
+        courriel: CLE038.Emploi@servicesquebec.gouv.qc.ca
+    042: 
+        courriel: CLE.TROIS.RIVIERES.EMPLOI@servicesquebec.gouv.qc.ca
+    051: &cle065
+        courriel: CLE065.Emploi@servicesquebec.gouv.qc.ca
+    052: 
+        courriel: _Boite.CLE052Emploi@servicesquebec.gouv.qc.ca
+    065: 
+        << : *cle065
+    124: 
+        courriel: CLE124.Emploi@servicesquebec.gouv.qc.ca
+    125: 
+        courriel: cle125.emploi@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Estrie
+05:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    003: 
+        courriel: CLE.ASBESTOS@servicesquebec.gouv.qc.ca
+    011: 
+        courriel: BSQ011-EC@servicesquebec.gouv.qc.ca
+    017: 
+        courriel: CLE.LAC-MEGANTIC@servicesquebec.gouv.qc.ca
+    071: 
+        courriel: BSQ071-EC@servicesquebec.gouv.qc.ca
+    098: 
+        courriel: CLE.SHERBROOKE098@servicesquebec.gouv.qc.ca
+    104: 
+        courriel: CLE.COATICOOK@servicesquebec.gouv.qc.ca
+    105: 
+        courriel: CLE.EAST-ANGUS@servicesquebec.gouv.qc.ca
+    106: 
+        courriel: CLE.WINDSOR@servicesquebec.gouv.qc.ca
+    120: 
+        courriel: CLE.MAGOG@servicesquebec.gouv.qc.ca
+    155: 
+        courriel: CLE.CSR@servicesquebec.gouv.qc.ca
+    177: 
+        courriel: CLE177@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Montréal
+06: &regionMontreal
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    063: 
+        courriel: bsq063@servicesquebec.gouv.qc.ca
+    064: 
+        courriel: bsq064@servicesquebec.gouv.qc.ca
+    069: 
+        courriel: bsq069@servicesquebec.gouv.qc.ca
+    091: 
+        courriel: bsq091@servicesquebec.gouv.qc.ca
+    092: 
+        courriel: bsq092@servicesquebec.gouv.qc.ca
+    094: 
+        courriel: bsq094@servicesquebec.gouv.qc.ca
+    141:
+        courriel: _BoiteCLE141.SR@servicesquebec.gouv.qc.ca
+    252: 
+        courriel: bsq252@servicesquebec.gouv.qc.ca
+    256: 
+        courriel: bsq256@servicesquebec.gouv.qc.ca
+    258: 
+        courriel: bsq258@servicesquebec.gouv.qc.ca
+    259: 
+        courriel: bsq259@servicesquebec.gouv.qc.ca
+    262: 
+        courriel: bsq262@servicesquebec.gouv.qc.ca
+    277: 
+        courriel: bsq277@servicesquebec.gouv.qc.ca
+    279: 
+        courriel: css.cv.279@servicesquebec.gouv.qc.ca
+    299:
+        courriel: craim299@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+6A:
+    << : *regionMontreal
+6F:
+    << : *regionMontreal
+
+#Outaouais
+07:
+    services:
+        accompagnementQuebec: 075
+        prestationSpeciale: bsqPrestationSpeciale
+    013: 
+        courriel: CLE.AYLMER@servicesquebec.gouv.qc.ca
+    075: 
+        courriel: CLE.GATINEAU@servicesquebec.gouv.qc.ca
+    097: 
+        courriel: CLE.MANIWAKI@servicesquebec.gouv.qc.ca
+    107: 
+        courriel: CLE.CAMPBELLS-BAY@servicesquebec.gouv.qc.ca
+    117: 
+        courriel: CLE.HULL@servicesquebec.gouv.qc.ca
+    127: 
+        courriel: CLE.BUCKINGHAM@servicesquebec.gouv.qc.ca
+    147: 
+        courriel: CLE.PAPINEAUVILLE@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Abitibi-Témiscamingue
+08:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    002: 
+        courriel: CLE.AMOS@servicesquebec.gouv.qc.ca
+    027: 
+        courriel: CLE.ROUYN-NORANDA@servicesquebec.gouv.qc.ca
+    045: 
+        courriel: CLE.VILLE-MARIE@servicesquebec.gouv.qc.ca
+    046: 
+        courriel: CLE.LASARRE@servicesquebec.gouv.qc.ca
+    047: 
+        courriel: CLE.VAL-DOR@servicesquebec.gouv.qc.ca
+    116: 
+        courriel: CLE.SENNETERRE@servicesquebec.gouv.qc.ca
+    222: 
+        courriel: ctr222@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Côte-Nord
+09:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    012: 
+        courriel: BSQ.BAIE-COMEAU@servicesquebec.gouv.qc.ca
+    037: 
+        courriel: bsq.sept-iles@servicesquebec.gouv.qc.ca
+    057: 
+        courriel: BSQ.FORESTVILLE@servicesquebec.gouv.qc.ca
+    089: 
+        courriel: BSQ.HAVRE-ST-PIERRE@servicesquebec.gouv.qc.ca
+    113: 
+        courriel: BSQ.LES-ESCOUMINS@servicesquebec.gouv.qc.ca
+    114: 
+        courriel: bsq.port-cartier@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Nord-du-Québec
+10:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    067: &cleRegion10
+        courriel: sq.nord.quebec@servicesquebec.gouv.qc.ca
+    100: 
+        << : *cleRegion10
+    101: 
+        << : *cleRegion10
+    102: 
+        << : *cleRegion10
+    233: 
+        << : *cleRegion10
+    235:
+        << : *cleRegion10
+    333:
+        courriel: bvas333@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *cleRegion10
+
+#Gaspésie / Iles de la Madeleine
+11:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    004: 
+        courriel: cle.bonaventure@servicesquebec.gouv.qc.ca
+    010: 
+        courriel: cle.cote-de-gaspe@servicesquebec.gouv.qc.ca
+    031: 
+        courriel: cle.haute-gaspesie@servicesquebec.gouv.qc.ca
+    049: 
+        courriel: cle.iles-de-la-madeleine@servicesquebec.gouv.qc.ca
+    050: 
+        courriel: cle.rocher-perce@servicesquebec.gouv.qc.ca
+    099: 
+        courriel: cle.avignon@servicesquebec.gouv.qc.ca
+    161:
+        courriel: CLE161@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Chaudiere / Appalaches
+12:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    020: &cleRegion12Levis
+        courriel: CLE.LEVIS@servicesquebec.gouv.qc.ca
+    023: &cleRegion12Montmagny
+        courriel: CLE.MONTMAGNY@servicesquebec.gouv.qc.ca
+    032:
+        courriel: CLE.LAC-ETCHEMIN@servicesquebec.gouv.qc.ca
+    041: 
+        courriel: CLE.THETFORD-MINES@servicesquebec.gouv.qc.ca
+    074: &cleRegion12SaintGeorges
+        courriel: CLE.SAINT-GEORGES@servicesquebec.gouv.qc.ca
+    076: 
+        courriel: CLE.STE-MARIE-DE-BEAUCE@servicesquebec.gouv.qc.ca
+    090: 
+        << : *cleRegion12Montmagny
+    137: 
+        << : *cleRegion12Levis
+    138: 
+        << : *cleRegion12Levis
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Laval
+13:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    006: 
+        courriel: cle006.mon.dossier@servicesquebec.gouv.qc.ca
+    096: 
+        courriel: CLE.STE-DOROTHEE@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Lanaudière
+14:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    014: 
+        courriel: CLE.JOLIETTE@servicesquebec.gouv.qc.ca
+    072: 
+        courriel: CLE.BERTHIERVILLE@servicesquebec.gouv.qc.ca
+    134: 
+        courriel: CLE.RAWDON@servicesquebec.gouv.qc.ca
+    135: 
+        courriel: CLE.REPENTIGNY@servicesquebec.gouv.qc.ca
+    136: 
+        courriel: CLE.SAINT-JEAN-DE-MATHA@servicesquebec.gouv.qc.ca
+    139: 
+        courriel: CLE.TERREBONNE@servicesquebec.gouv.qc.ca
+    140:
+        courriel: _BoiteCLE140@servicesquebec.gouv.qc.ca
+    166:
+        courriel: CLE166@servicesquebec.gouv.qc.ca
+    206:
+        courriel: bsq206@mess.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Laurentides
+15:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    016:
+        courriel: CLE.LACHUTE@servicesquebec.gouv.qc.ca
+    022:
+        courriel: CLE.MONT-LAURIER@servicesquebec.gouv.qc.ca
+    035:
+        courriel: CLE.ST-JEROME@servicesquebec.gouv.qc.ca
+    066:
+        courriel: CLE.SAINTE-THERESE@servicesquebec.gouv.qc.ca
+    118:
+        courriel: CLE.SAINTE-AGATHE@servicesquebec.gouv.qc.ca
+    129:
+        courriel: CLE.ST-EUSTACHE@SERVICESQUEBEC.GOUV.QC.CA
+    144:
+        courriel: CLE.SAINTE-THERESE@servicesquebec.gouv.qc.ca
+    145:
+        courriel: cle.sainte-adele@servicesquebec.gouv.qc.ca
+    167:
+        courriel: SDAF.DR15.EnLigne@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Montérégie
+16:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    008: 
+        courriel: BSQ008-EC@servicesquebec.gouv.qc.ca
+    024: 
+        courriel: BSQ024-EC@servicesquebec.gouv.qc.ca
+    033: 
+        courriel: BSQ033-EC@servicesquebec.gouv.qc.ca
+    034: 
+        courriel: BSQ034-EC@servicesquebec.gouv.qc.ca
+    040: 
+        courriel: BSQ040-EC@servicesquebec.gouv.qc.ca
+    043: 
+        courriel: BSQ043-EC@servicesquebec.gouv.qc.ca
+    077: 
+        courriel: BSQ077-EC@servicesquebec.gouv.qc.ca
+    083: 
+        courriel: BSQ083-EC@servicesquebec.gouv.qc.ca
+    086: 
+        courriel: BSQ086-EC@servicesquebec.gouv.qc.ca
+    087: 
+        courriel: BSQ087-EC@servicesquebec.gouv.qc.ca
+    110: 
+        courriel: BSQ110-EC@servicesquebec.gouv.qc.ca
+    121: 
+        courriel: BSQ121-EC@servicesquebec.gouv.qc.ca
+    130: 
+        courriel: BSQ130-EC@servicesquebec.gouv.qc.ca
+    203: 
+        courriel: BSQ203.EC@servicesquebec.gouv.qc.ca
+    205: 
+        courriel: BSQ205.EC@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Centre du Québec
+17:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    009: 
+        courriel: cle.drummondville@servicesquebec.gouv.qc.ca
+    026: 
+        courriel: bsq026@servicesquebec.gouv.qc.ca
+    044: 
+        courriel: cle.victoriaville@servicesquebec.gouv.qc.ca
+    122: 
+        courriel: cle.lerable@servicesquebec.gouv.qc.ca
+    224: 
+        courriel: CLE224@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        courriel: CLE224@servicesquebec.gouv.qc.ca
+
+#Région 18 (CSC)
+18:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    170: &cleCCC
+        courriel: daccc.equipe.courrier@servicesquebec.gouv.qc.ca
+    171:
+        << : *cleCCC
+    190:
+        << : *cleCCC
+    191:
+        << : *cleCCC
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Région 95
+95:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Région 96
+96:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    157:
+        courriel: csta157@servicesquebec.gouv.qc.ca
+    361:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    362:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    378:
+        courriel: 165.pss@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Région 97 - 4 unités de MTL relèvent maintenant du central
+97:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    142:
+        courriel: CLE142.GARANTS@servicesquebec.gouv.qc.ca
+    162:
+        courriel: CLE162.SERVICES.PARRAINES@servicesquebec.gouv.qc.ca
+    297:
+        courriel: CENTRE.DEMANDEURS.ASILE@servicesquebec.gouv.qc.ca
+    300:
+        courriel: dr06.l300.btd@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Région 98
+98:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    103:
+        courriel: dgce.admin.enquetes@servicesquebec.gouv.qc.ca
+    164:
+        courriel: dgce.aide.conditionnelle@servicesquebec.gouv.qc.ca
+    168:
+        courriel: dgce.sc1@servicesquebec.gouv.qc.ca
+    173:
+        courriel: dgce.sci-1.incoherences.rq@servicesquebec.gouv.qc.ca
+    174:
+        courriel: dgce.sci2.incoherences.rq@servicesquebec.gouv.qc.ca
+    178:
+        courriel: dgce.sci-1.conformite@servicesquebec.gouv.qc.ca
+    179:
+        courriel: dgce.sc.2@servicesquebec.gouv.qc.ca
+    184:
+        courriel: dgce.sci2.incoherences.rq@servicesquebec.gouv.qc.ca
+    188:
+        courriel: dgce.admin.enquetes@servicesquebec.gouv.qc.ca
+    193:
+        courriel: dgce.ses193@mess.gouv.qc.ca
+    196:
+        courriel: dgce.sci2.conformite@servicesquebec.gouv.qc.ca
+    208:
+        courriel: dgce.reclamations@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    default:
+        << : *courrielRejet
+
+#Permet de gérer les régions associées à des codes postaux inexistants. (Quand UNA ou RIR ne trouve pas de région)
+XX:
+    services:
+        accompagnementQuebec: #Laisser vide quand tous les BSQ gèrent leurs propres demandes de accompagnementQuebec
+        prestationSpeciale: bsqPrestationSpeciale
+    BRT:
+        courriel: revision.recours.administratifs.tr@mess.gouv.qc.ca
+    SIM:
+        courriel: revision.recours.administratifs.mtl@mess.gouv.qc.ca
+    SRE:
+        courriel: revision.recours.administratifs.qc@mess.gouv.qc.ca
+    SRO:
+        courriel: drra-srep@mess.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: dgdaas.reception.pss@servicesquebec.gouv.qc.ca
+    XXX: #Permet de gérer un BSQ associé à des codes postaux inexistants.
+        << : *courrielRejet
+    default:
+        << : *courrielRejet

@@ -1,0 +1,15 @@
+# Liens chiffrés par ECS (protection des données d'ECS) et secret GED de la demande :
+#   GenererUrlAvancement, GenererUrlConsulterDocumentsLigneAffaire et GenererSecret (secretGED) d'ECS25A.
+# Contrat attendu :
+#   { "secretGed": "…",
+#     "urlAvancement": { "fr": "https://…/Suivis/AvancementDemande?no=…", "en": "https://…/en/Suivis/AvancementDemande?no=…" },
+#     "urlDocuments": { "ASF": "https://…", "EQ": "https://…" } }
+http_client:
+  liens:
+    method: POST
+    url: https://ecs-services.mess.reseau.intra/api/v1/TransmissionDocuments/GenererLiens
+    use_default_credentials: true
+    headers:
+      Accept: application/json
+    content:
+      json_content: '{ "noConfirmationTransmission": "{{ide}}", "langue": "{{langue}}", "lignesAffaires": ["ASF", "EQ"] }'

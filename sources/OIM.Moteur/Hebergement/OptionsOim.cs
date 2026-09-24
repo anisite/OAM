@@ -41,6 +41,28 @@ public sealed class OptionsOim
     public OptionsCourriel Courriel { get; set; } = new();
 
     public OptionsTests Tests { get; set; } = new();
+
+    /// <summary>
+    /// Palier courant (unitaire, acceptation, techno, production…) : choisit la valeur des tables par palier
+    /// (adresses de courriel <c>{ unitaire: …, production: … }</c>, fichiers <c>courriels.BSQ.{palier}.yml</c>).
+    /// </summary>
+    public string Palier { get; set; } = "unitaire";
+
+    /// <summary>
+    /// Services appelés par les étapes dédiées (apparierGdi, deposerGed, genererPageGarde…), par type d'étape :
+    /// <c>Oim:Services:apparierGdi:Url</c>. L'étape leur transmet ses propriétés résolues en JSON (POST).
+    /// </summary>
+    public Dictionary<string, OptionsService> Services { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+}
+
+public sealed class OptionsService
+{
+    public string? Url { get; set; }
+
+    /// <summary>Authentification Windows du compte du pool (services internes MESS).</summary>
+    public bool UtiliserIdentiteWindows { get; set; } = true;
+
+    public TimeSpan Delai { get; set; } = TimeSpan.FromMinutes(2);
 }
 
 public enum ModeTestsDeploiement { Bloquant, Avertissement, Desactive }

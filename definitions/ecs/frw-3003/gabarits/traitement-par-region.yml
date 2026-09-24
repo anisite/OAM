@@ -1,0 +1,15 @@
+# Courriel à la boîte générique retenue (ECS25A : courriel « traitementParRegion »). Destinataire : boîte retenue.
+de:
+  unitaire: ESUN-DE01@ESSAIS.mess.gouv.qc.ca
+  acceptation: ESAC-DE01@ESSAIS.MESS.GOUV.QC.CA
+  techno: NEPASREPONDRE@mess.gouv.qc.ca
+  production: NEPASREPONDRE@mess.gouv.qc.ca
+sujet: Demande {{#if variables.estAFDR}}AFDR{{/if}}{{#if variables.estAFDR}}{{#if variables.estEQ}} et {{/if}}{{/if}}{{#if variables.estEQ}}SP Emploi{{/if}} - {{variables.dateDemande}} - {{entrees.ide}} {{{boite.suffixeObjet}}}
+format: html
+corps: |
+  <p>Cliquez sur le lien ci-dessous pour consulter les formulaires ou les documents transmis par le citoyen.</p>
+  {{#if variables.estAFDR}}<h3><a href="{{etapes.liens.sortie.urlDocuments.ASF}}">Voir les fichiers AFDR</a></h3>{{/if}}
+  {{#if variables.estEQ}}<h3><a href="{{etapes.liens.sortie.urlDocuments.EQ}}">Voir les fichiers SP Emploi</a></h3>{{/if}}    
+  <p>Nom : {{entrees.champs.form_adulte1NomFamille}}, Prénom : {{entrees.champs.form_adulte1Prenom}}</p>
+  <p>Pour toutes problématiques concernant les demandes en ligne, veuillez contacter : <a href=mailto:pilotage.mon.dossier@servicesquebec.gouv.qc.ca>boite pilotage mon dossier</a></p>
+  <p>BSQ: {{{variables.cleJuridictionCP}}}<br>CP12: {{entrees.champs.form_adulte1Cp12}}<br>CP12: {{entrees.champs.form_adulte2Cp12}}<br>Code postal: {{variables.codePostal}}</p>

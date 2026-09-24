@@ -1,0 +1,20 @@
+# ECS323 - Conserver les informations de transmission (suivi de la demande dans l'espace client).
+# Service ECS existant : TransmissionInformation/ConserverInfosTransmissionEnregistrer.
+# Clés permises (default.config.yml) : LigneAffaire, Courriel, CodePostal.
+http_client:
+  conserver:
+    method: POST
+    url: https://ecs-services.mess.reseau.intra/api/v1/TransmissionInformation/ConserverInfosTransmissionEnregistrer
+    use_default_credentials: true
+    headers:
+      Accept: application/json
+    content:
+      json_content: >-
+        { "entree": {
+            "codeObjetTransmission": {{codeObjetTransmission}},
+            "noConfirmationTransmission": "{{ide}}",
+            "noGdi": "{{noGdi}}",
+            "langue": "{{langue}}",
+            "inscrireSuiviEtat": true,
+            "codeEtat": { "{{etat}}": "{{dateEtat}}" },
+            "informations": { "LigneAffaire": "{{cles.LigneAffaire}}", "Courriel": "{{cles.Courriel}}", "CodePostal": "{{cles.CodePostal}}" } } }

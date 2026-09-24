@@ -26,7 +26,9 @@ public sealed class FabriqueActivites(IServiceProvider services) : INameVersionO
         [NomsActivites.ChargerDefinition] = typeof(ChargerDefinitionActivite),
         [NomsActivites.Http] = typeof(HttpActivite),
         [NomsActivites.Courriel] = typeof(CourrielActivite),
-        [NomsActivites.Reponse] = typeof(ReponseActivite)
+        [NomsActivites.Reponse] = typeof(ReponseActivite),
+        [NomsActivites.Service] = typeof(ServiceActivite),
+        [NomsActivites.ResoudreBoite] = typeof(ResoudreBoiteActivite)
     };
 
     public void Add(ObjectCreator<TaskActivity> creator) =>

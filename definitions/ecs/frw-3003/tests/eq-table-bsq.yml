@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=../../../../schemas/cas-test.schema.json
+nom: Services d'emploi (EQ) — boîte du CLE selon la table BSQ, sans dossier GDI ni courriel client
+entrees:
+  ide: "300312347"
+  champs:
+    form_TypeDemande_0: AideEmploi
+    form_adulte1NomFamille: Gagnon
+    form_adulte1Prenom: Luc
+    form_adulte1Adresse_0_CodePostal: G7H 5B1
+    form_ConsentementEchangeRenseignements: ConsentementOui
+
+mocks:
+  localiser: { statut: 200, corps: { region: "02", cleJuridiction: "1", decloisonne: { ASF: false, EQ: false } } }
+  apparier: { resultat: Aucun }
+  documents: { documents: [], pjManquantes: [], afficherPjManquantes: false }
+  pageGarde: { document: { nom: pg.pdf, nomOriginal: Confirmation_Authentification.pdf, source: genererPageGarde } }
+  liens: { statut: 200, corps: { secretGed: s, urlAvancement: { fr: "https://a", en: "https://a" }, urlDocuments: { ASF: "https://d", EQ: "https://d" } } }
+  ged: { soumissions: [] }
+  conserver: { statut: 200, corps: {} }
+
+attendu:
+  statut: Completed
+  # Pas de dossier antérieur (aucun GDI) ni de confirmation (aucun courriel client).
+  parcours: [localiser, calcules, calculesFinaux, decloisonnement, apparier, resultatGdi, documents, pageGarde, liens, ged, boite, conserver, repondre]
+  variables: { estEQSeul: true, ligneAffaire: EQ, equipe: EQ }
+  sorties:
+    # Table courriels.BSQ.unitaire.yml : région 02, CLE 001 (la CLE « 1 » est complétée à 3 chiffres).
+    boite: { source: bsq, cle: "001", region: "02", a: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA, table: courriels.BSQ.unitaire.yml }
+  courriels:
+    - gabarit: gabarits/traitement-par-region.yml
+      a: [ESUN-A04@ESSAIS.MESS.GOUV.QC.CA]
+  reponse: { corps: { possedeGDI: false, ligneAffaire: EQ, estBureauDecloisonne: false } }

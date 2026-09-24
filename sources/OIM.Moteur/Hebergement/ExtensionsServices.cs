@@ -53,6 +53,8 @@ public static class ExtensionsServices
         services.AddTransient<HttpActivite>();
         services.AddTransient<CourrielActivite>();
         services.AddTransient<ReponseActivite>();
+        services.AddTransient<ServiceActivite>();
+        services.AddTransient<ResoudreBoiteActivite>();
 
         services.AddSingleton<ServiceDefinitions>();
         services.AddSingleton<ServiceInstances>();

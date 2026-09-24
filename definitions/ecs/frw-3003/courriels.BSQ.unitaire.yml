@@ -1,0 +1,179 @@
+# Adresse de destination si la région est introuvable ou si la région ne souhaite pas traiter elle même les rejets.
+default: 
+    default: &courrielRejet
+        courriel: ESUN-A05@ESSAIS.MESS.GOUV.QC.CA
+
+# Bas St-Laurent
+01:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    #001:
+    #   courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+    #019: &cleRegion01
+    #    courriel: cle.lapocatiere@servicesquebec.gouv.qc.ca
+    #021:
+    #    courriel: cle.matane@servicesquebec.gouv.qc.ca
+    029:
+        courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+    030:
+        courriel: ESUN-A01@ESSAIS.MESS.GOUV.QC.CA
+    #058:
+    #    courriel: cle.amqui@servicesquebec.gouv.qc.ca
+    #059:
+    #    courriel: cle.temiscouata@servicesquebec.gouv.qc.ca
+    #060:
+    #    courriel: cle.mont-joli@servicesquebec.gouv.qc.ca
+    #095:
+    #    courriel: cle.trois-pistoles@servicesquebec.gouv.qc.ca
+    bsqPrestationSpeciale:
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Saguenay / Lac St-Jean
+02:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    default:
+        << : *courrielRejet
+    001:
+        courriel: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+        
+        
+#Capitale-Nationale
+03:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    default:
+        << : *courrielRejet
+    053:
+        courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+    054:
+        courriel: ESUN-A01@ESSAIS.MESS.GOUV.QC.CA
+    018:
+        courriel: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA
+    175:
+        courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+
+#Estrie
+05:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    003: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    104:
+        courriel: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+        
+#Montréal
+06: &regionMontreal
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    063: 
+        courriel: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA
+    069: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    284: 
+        courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+    258: 
+        courriel: ESUN-A01@ESSAIS.MESS.GOUV.QC.CA
+    260: 
+        courriel: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA
+    297: 
+        services:
+            prestationSpeciale: bsqPrestationSpeciale297
+        courriel: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale297:
+        courriel: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Montréal Anglais
+6A:
+    << : *regionMontreal
+
+#Montréal Français
+6F:
+    << : *regionMontreal
+    
+#Outaouais
+07:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    default:
+        << : *courrielRejet
+    013:
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+
+#Laurentides
+15:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    016: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    022: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    035: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    066: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    118: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    129: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    144: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    145: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    167:
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    181: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Montérégie
+16:
+    services:
+        prestationSpeciale: bsqPrestationSpeciale
+    008: 
+        courriel: ESUN-A01@ESSAIS.MESS.GOUV.QC.CA
+    011: 
+        courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+    031: 
+        courriel: ESUN-A03@ESSAIS.MESS.GOUV.QC.CA
+    277: 
+        courriel: ESUN-A02@ESSAIS.MESS.GOUV.QC.CA
+    bsqPrestationSpeciale:
+        courriel: ESUN-A04@ESSAIS.MESS.GOUV.QC.CA
+    default:
+        << : *courrielRejet
+
+#Région 18 (CSC)
+18:
+    services:
+        prestationSpeciale:
+    default:
+        << : *courrielRejet
+
+#Permet de gérer les régions associées à des codes postaux inexistants. (Quand UNA ou RIR ne trouve pas de région)
+XX:
+    services:
+        prestationSpeciale: #Laissé vide quand tous les BSQ gèrent leurs propres demandes de prestationSpeciale
+    XXX: #Permet de gérer un BSQ associé à des codes postaux inexistants.
+        << : *courrielRejet
+    default:
+        << : *courrielRejet

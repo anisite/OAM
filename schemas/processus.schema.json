@@ -92,7 +92,8 @@
       "required": ["id", "type"],
       "properties": {
         "id": { "type": "string" },
-        "type": { "enum": ["http", "attendreEvenement", "courriel", "delai", "decision", "definir", "sousProcessus", "reponse"] },
+        "type": { "enum": ["http", "attendreEvenement", "courriel", "delai", "decision", "definir", "sousProcessus", "reponse",
+                           "chargerDocuments", "apparierGdi", "validerDossierAnterieur", "genererPageGarde", "deposerGed", "boiteGenerique"] },
         "description": { "type": "string" },
         "statut": { "$ref": "#/definitions/expression", "description": "Statut métier affiché pendant l'étape (statut personnalisé)." },
         "message": { "$ref": "#/definitions/expression", "description": "Message retourné au client, évalué après l'étape." },
@@ -116,7 +117,29 @@
         "version": { "type": ["integer", "string"], "description": "[sousProcessus] Version (défaut : courante)." },
         "entrees": { "type": "object", "description": "[sousProcessus] Entrées du processus enfant." },
         "statutHttp": { "type": ["integer", "string"], "description": "[reponse] Statut HTTP retourné à l'appelant synchrone (défaut 200)." },
-        "corps": { "description": "[reponse] Corps JSON retourné à l'appelant synchrone." }
+        "corps": { "description": "[reponse] Corps JSON retourné à l'appelant synchrone." },
+        "langue": { "$ref": "#/definitions/expression", "description": "[courriel, boiteGenerique, chargerDocuments, deposerGed] Langue (fr, en) des valeurs déclinées { fr, en }." },
+        "documents": { "description": "[chargerDocuments, genererPageGarde, deposerGed] Références de documents (listes imbriquées aplaties)." },
+        "fichiersBruts": { "description": "[chargerDocuments] PDF générés par le formulaire : { nom, reference }." },
+        "piecesJointes": { "type": "object", "description": "[chargerDocuments] Nom de chaque fichier brut : nomEntrant → { fr, en }." },
+        "fichiersFrw": { "type": ["boolean", "string"], "description": "[chargerDocuments] Télécharger les documents FRW." },
+        "pjDepotEcs": { "type": ["boolean", "string"], "description": "[chargerDocuments] Ajouter les pièces jointes du dépôt ECS." },
+        "identite": { "description": "[apparierGdi, genererPageGarde] Identité de l'individu." },
+        "comparaisons": { "type": "array", "description": "[apparierGdi] { nomChamp, valeur, champGdi, type, poids, comparer }." },
+        "seuilGdi": { "type": ["integer", "string"], "description": "[apparierGdi] Seuil de comparaison GDI." },
+        "seuilVirq": { "type": ["integer", "string"], "description": "[apparierGdi] Seuil de comparaison VIRQ." },
+        "creer": { "type": ["boolean", "string"], "description": "[apparierGdi] Créer l'individu s'il est introuvable." },
+        "modifier": { "type": ["boolean", "string"], "description": "[apparierGdi] Mettre à jour l'individu apparié." },
+        "noGdi": { "description": "[validerDossierAnterieur] Numéro GDI de l'individu." },
+        "titre": { "type": "string", "description": "[genererPageGarde] Titre de la page de garde." },
+        "sousTitre": { "type": "string", "description": "[genererPageGarde] Sous-titre." },
+        "renseignementAdditionnel": { "type": "string", "description": "[genererPageGarde] Renseignement additionnel." },
+        "fusionner": { "type": ["boolean", "string"], "description": "[genererPageGarde] Fusionner la page de garde au formulaire." },
+        "nomFichier": { "type": "string", "description": "[genererPageGarde] Nom du PDF produit." },
+        "envois": { "type": "array", "description": "[deposerGed] Envois : { actif, filtres, sujet, type, informationsSupplementaires, indAffichageClient, lignesAffaires, langue }." },
+        "individu": { "type": "object", "description": "[deposerGed] Individu (noGdi, cp12)." },
+        "informationsSupplementaires": { "type": "object", "description": "[deposerGed] Informations supplémentaires communes à tous les envois." },
+        "blocs": { "type": "array", "description": "[boiteGenerique] Blocs { si, a | bsq { table, cle, region }, gabarit?, suffixeObjet? } : le premier applicable est retenu." }
       }
     }
   }

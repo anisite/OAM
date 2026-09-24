@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../../../schemas/cas-test.schema.json
+nom: AFDR avec code postal introuvable — bureau décloisonné, pas de boîte générique
+entrees:
+  ide: "300312349"
+  courrielClient: citoyen@exemple.com
+  champs:
+    form_TypeDemande_0: Afdr
+    form_adulte1Adresse_0_CodePostal: Z0Z 0Z0
+
+mocks:
+  localiser: { statut: 404, corps: { message: Code postal introuvable } }
+  apparier: { resultat: Aucun }
+  documents: { documents: [], pjManquantes: [], afficherPjManquantes: false }
+  pageGarde: { document: { nom: pg.pdf, nomOriginal: Confirmation_Authentification.pdf, source: genererPageGarde } }
+  liens: { statut: 200, corps: { secretGed: s, urlAvancement: { fr: "https://a", en: "https://a" }, urlDocuments: { ASF: "https://d", EQ: "https://d" } } }
+  ged: { soumissions: [] }
+  conserver: { statut: 200, corps: {} }
+
+attendu:
+  statut: Completed
+  # GED212 crée une tâche au GAA (SignalementRequis) : aucun courriel à une boîte générique.
+  parcours: [localiser, calcules, calculesFinaux, decloisonnement, apparier, resultatGdi, documents, pageGarde, liens, ged, confirmation, conserver, repondre]
+  variables: { estCodePostalInvalide: true, estBureauDecloisonne: true }
+  courriels:
+    - gabarit: gabarits/confirmation-client.yml
+      a: [citoyen@exemple.com]
+  reponse: { corps: { estBureauDecloisonne: true } }

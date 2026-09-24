@@ -45,6 +45,20 @@
           <span v-if="c.precision" class="precision">{{ c.precision }}</span>
         </div>
 
+        <div v-else-if="c.type === 'json'" class="champ-compact">
+          <label :for="`pr_${c.nom}`">{{ c.libelle }}<span v-if="c.requis"> *</span></label>
+          <textarea
+            :id="`pr_${c.nom}`"
+            class="texte-mono champ-json"
+            rows="8"
+            :value="jsonTexte(etape.props[c.nom])"
+            :aria-invalid="!!erreursJson[c.nom]"
+            @change="majJson(c.nom, ($event.target as HTMLTextAreaElement).value)"
+          ></textarea>
+          <span v-if="erreursJson[c.nom]" class="erreur-json" role="alert">JSON invalide : {{ erreursJson[c.nom] }}</span>
+          <span v-if="c.precision" class="precision">{{ c.precision }}</span>
+        </div>
+
         <div v-else class="champ-compact">
           <label :for="`pr_${c.nom}`">{{ c.libelle }}<span v-if="c.requis"> *</span></label>
           <input
@@ -153,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import EditeurObjet from './EditeurObjet.vue'
 import { TYPES_ETAPES, typeEtape, type TypeChamp } from '@/lib/catalogue'
 import type { BrancheModele, EtapeModele, ModeleProcessus } from '@/lib/modele'
@@ -175,6 +189,23 @@ const emit = defineEmits<{
 }>()
 
 const info = computed(() => typeEtape(props.etape.type))
+
+// Champs « json » : la valeur n'est remplacée que si le texte est du JSON valide.
+const erreursJson = reactive<Record<string, string>>({})
+const jsonTexte = (v: unknown): string => (v === undefined || v === null ? '' : JSON.stringify(v, null, 2))
+const majJson = (nom: string, texte: string): void => {
+  if (!texte.trim()) {
+    delete props.etape.props[nom]
+    delete erreursJson[nom]
+    return
+  }
+  try {
+    props.etape.props[nom] = JSON.parse(texte)
+    delete erreursJson[nom]
+  } catch (e) {
+    erreursJson[nom] = (e as Error).message
+  }
+}
 const estDepart = computed(() => props.modele.etapes[0]?.uid === props.etape.uid)
 const autresEtapes = computed(() => props.modele.etapes.map((e) => e.id))
 const conditionnelles = computed(() => props.etape.suivant.filter((b) => b.si !== null))
@@ -225,3 +256,15 @@ const basculerRetry = (actif: boolean): void => {
   props.etape.retry = actif ? { tentatives: 3, delai: '00:00:30', backoff: 2 } : null
 }
 </script>
+
+<style scoped>
+.champ-json {
+  width: 100%;
+  font-size: 0.8125rem;
+  resize: vertical;
+}
+.erreur-json {
+  color: var(--oim-rouge);
+  font-size: 0.8125rem;
+}
+</style>

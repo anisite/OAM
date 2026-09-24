@@ -1,0 +1,121 @@
+# Accusé de réception au citoyen (ECS25A : « confirmationSoumissionClient »), en français ou en anglais.
+# Pièces jointes d’ECS25A (Droits et obligations, Renseignements essentiels) : non prises en charge pour l’instant.
+de:
+  unitaire: ESUN-DE01@ESSAIS.mess.gouv.qc.ca
+  acceptation: ESAC-DE01@ESSAIS.MESS.GOUV.QC.CA
+  techno: ESIT-DE01@ESSAIS.MESS.GOUV.QC.CA
+  production: NEPASREPONDRE@mess.gouv.qc.ca
+sujet:
+  fr: Accusé de réception de votre demande {{#if variables.estAFDR}}d’aide financière{{/if}}{{#if variables.estAFDR}}{{#if variables.estEQ}} et {{/if}}{{/if}}{{#if variables.estEQ}}de services d’emploi{{/if}}
+  en: Acknowledgment of receipt for your application {{#if variables.estAFDR}}for financial assistance{{/if}}{{#if variables.estAFDR}}{{#if variables.estEQ}} and {{/if}}{{/if}}{{#if variables.estEQ}}for employment services{{/if}} form
+format: html
+corps:
+  fr: |
+    <img src="https://mondossier.mtess.gouv.qc.ca/images/courriel/Logo_MESS.png" width="210" height="81" alt="Gouvernement du Québec" border="0" />
+    <p>Bonjour,</p>
+    {{#if variables.estEQSeul}}<p>La demande portant le numéro de confirmation <b>{{entrees.ide}}</b> a bien été reçue par le Ministère et elle sera traitée par nos agents dès que possible.</p>{{/if}}
+    {{#unless variables.estEQSeul}}<p>La demande portant le numéro de confirmation {{#if variables.possedeGDI}}<a href="{{etapes.liens.sortie.urlAvancement.fr}}">{{entrees.ide}}</a>{{/if}}{{#unless variables.possedeGDI}}<b>{{entrees.ide}}</b>{{/unless}} a bien été reçue par le Ministère et elle sera traitée par nos agents dès que possible.</p>{{/unless}}
+    <p>Nous recevons actuellement un nombre important de demandes. Le délai de traitement peut donc être plus long qu’à l’habitude.</p>
+    {{#if variables.estAFDRSeul}}<p>Vous trouverez ci-joint les documents « Droits et obligations » ainsi que « Renseignements essentiels » qui contiennent des informations importantes relatives à votre demande d'aide financière.</p>{{/if}}
+    {{#if variables.estAFDRetEQ}}<p>Vous trouverez ci-joint les documents « Droits et obligations » ainsi que « Renseignements essentiels » qui contiennent des informations importantes relatives à votre demande d'aide financière.</p>{{/if}} 
+    {{#if etapes.documents.sortie.afficherPjManquantes}}
+    <p>Certains documents requis pour le traitement de votre demande n'ont pas été transmis avec cette dernière. Votre demande sera analysée une fois que vous aurez fourni tous les documents et renseignements requis pour son traitement.</p>
+    <p>Les documents suivants sont requis pour le traitement de votre demande :</p>
+    <ul>
+    {{#each etapes.documents.sortie.pjManquantes}}
+        <li>{{this}}</li>
+    {{/each}}
+    </ul>
+    {{/if}}
+    <p><b>Il est possible que des documents non mentionnés lors du dépôt de la demande vous soient demandés à la suite de l’analyse de votre dossier.</b></p>
+    {{#if etapes.documents.sortie.afficherPjManquantes}}
+    {{#if variables.possedeGDI}}
+    <p>Vous pouvez utiliser le <a href="https://mondossier.mtess.gouv.qc.ca/fr/Services?categorie=VOSDOC">service en ligne de transmission de documents</a> pour transmettre ces documents. Ce service nécessite une authentification avec clicSÉQUR, ce qui permet de garantir la sécurité de vos informations.</p>
+    <p>Si vous n’utilisez pas le service en ligne pour transmettre vos documents, vous recevrez bientôt une communication concernant la marche à suivre pour transmettre les documents manquants.</p>
+    {{/if}}
+    {{/if}}
+    <p>    
+        {{#if variables.estAFDRSeul}}{{#if variables.possedeGDI}}Si vous avez besoin de plus de renseignements, vous pouvez consulter la <a href="{{etapes.liens.sortie.urlAvancement.fr}}">page de suivi du statut de votre demande</a>.{{/if}}{{/if}}
+        {{#if variables.estAFDRetEQ}}{{#if variables.possedeGDI}}Si vous avez besoin de plus de renseignements, vous pouvez consulter la <a href="{{etapes.liens.sortie.urlAvancement.fr}}">page de suivi du statut de votre demande</a>.{{/if}}{{/if}} 
+    </p>
+    <p>&nbsp;</p>
+    <p>Meilleures salutations,</p>
+    <div>
+    {{#if variables.estAFDRSeul}}Direction générale de l’assistance sociale{{/if}}
+    {{#if variables.estAFDRetEQ}}Direction générale de l’assistance sociale{{/if}}
+    {{#if variables.estEQSeul}}Direction générale des mesures et des services d’emploi{{/if}}
+    </div>
+    <div>Ministère de l’Emploi et de la Solidarité sociale</div>
+    <p style="margin-bottom:0">Vous pouvez communiquer avec nous :</p>
+    <ul style="margin-top:0">
+      <li>
+        Par téléphone :
+        <ul>
+          {{#if variables.estAFDRSeul}}<li>1 877 767-8773 (sans frais);</li>{{/if}}
+          {{#if variables.estAFDRetEQ}}<li>1 877 767-8773 (sans frais);</li>{{/if}}
+          {{#if variables.estEQSeul}}<li>1 877 644-4545 (sans frais);</li>{{/if}}
+          <li>1 800 361-9596 (service pour personnes malentendantes, ATS - sans frais);</li>
+        </ul>
+      </li>
+      <li>Via nos services en ligne : <a href="https://mondossier.mtess.gouv.qc.ca">mondossier.mtess.gouv.qc.ca</a></li>
+    </ul>
+    <p>
+        {{#if variables.estAFDRSeul}}<a href="https://www.quebec.ca/famille-et-soutien-aux-personnes/aide-sociale-et-solidarite-sociale/services-en-ligne?utm_campaign=mondossieraeas_jan21&utm_medium=all&utm_source=confirmation_3003" target="_blank"><img src="https://mondossier.mtess.gouv.qc.ca/images/courriel/bandeau_asf.png" width="650" height="150" alt="Vous êtes prestataire d'un programme d'aide sociale ou de solidarité sociale, utilisez nos services en ligne en vous inscrivant à Mon dossier - Aide à l'emploi - Assistance sociale" border="0" /></a>{{/if}}
+        {{#if variables.estEQSeul}}<a href="https://www.quebec.ca/emploi/conseils-en-recherche-demploi/aide-a-lemploi/services-en-ligne?utm_campaign=mondossieraeas_jan21&utm_medium=all&utm_source=confirmation_3003" target="_blank"><img src="https://mondossier.mtess.gouv.qc.ca/images/courriel/bandeau_eq.png" width="650" height="150" alt="Vous êtes prestataire d'un programme d'aide sociale ou de solidarité sociale, utilisez nos services en ligne en vous inscrivant à Mon dossier - Aide à l'emploi - Assistance sociale" border="0" /></a>{{/if}}
+        {{#if variables.estAFDRetEQ}}<a href="https://www.quebec.ca/famille-et-soutien-aux-personnes/aide-sociale-et-solidarite-sociale/services-en-ligne?utm_campaign=mondossieraeas_jan21&utm_medium=all&utm_source=confirmation_3003" target="_blank"><img src="https://mondossier.mtess.gouv.qc.ca/images/courriel/bandeau_asf.png" width="650" height="150" alt="Vous êtes prestataire d'un programme d'aide sociale ou de solidarité sociale, utilisez nos services en ligne en vous inscrivant à Mon dossier - Aide à l'emploi - Assistance sociale" border="0" /></a>{{/if}}
+    </p>
+    <p>Ce message est automatisé. Nous vous demandons de ne pas y répondre.</p>
+  en: |
+    <img src="https://mondossier.mtess.gouv.qc.ca/images/courriel/Logo_MESS.png" width="210" height="81" alt="Gouvernement du Québec" border="0" />
+    <p>Hello,</p>
+    {{#if variables.estEQSeul}}<p>The request with the confirmation number <b>{{entrees.ide}}</b> has been received and will be processed by our officers as soon as possible.</p>{{/if}}
+    {{#unless variables.estEQSeul}}<p>The request with the confirmation number {{#if variables.possedeGDI}}<a href="{{etapes.liens.sortie.urlAvancement.en}}">{{entrees.ide}}</a>{{/if}}{{#unless variables.possedeGDI}}<b>{{entrees.ide}}</b>{{/unless}} has been received and will be processed by our officers as soon as possible.</p>{{/unless}}
+    <p>We are currently receiving a significant number of requests. The processing time may therefore be longer than usual.</p>
+    <p>
+        {{#if variables.estAFDRSeul}}You will find attached the documents "Rights and obligations" as well as "Essential Information" which contain important information relating to your application for financial assistance.{{/if}}
+        {{#if variables.estAFDRetEQ}}You will find attached the documents "Rights and obligations" as well as "Essential Information" which contain important information relating to your application for financial assistance.{{/if}}
+    </p>
+    {{#if etapes.documents.sortie.afficherPjManquantes}}
+    <p>Some documents required to process your application have not been submitted with your application. Your application will be analyzed once you have provided all the documents and information required for its processing.</p>
+    <p>The following documents are required for the processing of your application:</p>
+    <ul>
+    {{#each etapes.documents.sortie.pjManquantes}}
+        <li>{{this}}</li>
+    {{/each}}
+    </ul>
+    {{/if}}
+    <p><b>It is possible that documents not mentioned when submitting the application will be requested following the analysis of your file.</b></p>
+    {{#if etapes.documents.sortie.afficherPjManquantes}}
+    {{#if variables.possedeGDI}}
+    <p>You can use the <a href="https://mondossier.mtess.gouv.qc.ca/en/Services?categorie=VOSDOC">online document transmission service</a> to transmit these documents. This service requires authentication with clicSÉQUR, which ensures the security of your information.</p>
+    <p>If you do not use the online service to transmit your documents, you will soon receive a communication about how to transmit the missing documents.</p>
+    {{/if}}
+    {{/if}}
+    <p>    
+        {{#if variables.estAFDRSeul}}{{#if variables.possedeGDI}}You can get more information and follow its progress by visiting the <a href="{{etapes.liens.sortie.urlAvancement.en}}">status of application page</a>.{{/if}}{{/if}}
+        {{#if variables.estAFDRetEQ}}{{#if variables.possedeGDI}}You can get more information and follow its progress by visiting the <a href="{{etapes.liens.sortie.urlAvancement.en}}">status of application page</a>.{{/if}}{{/if}} 
+    </p>
+    <p>&nbsp;</p>
+    <p>Best regards,</p>
+    {{#if variables.estAFDRSeul}}<div>Direction générale de l’assistance sociale</div>{{/if}}
+    {{#if variables.estAFDRetEQ}}<div>Direction générale de l’assistance sociale</div>{{/if}}
+    {{#if variables.estEQSeul}}<div>Direction générale des mesures et des services d’emploi</div>{{/if}}
+    <div>Ministère de l'Emploi et de la Solidarité sociale</div>
+    <p style="margin-bottom:0">You can contact us:</p>
+    <ul style="margin-top:0">
+      <li>By phone:
+        <ul>
+          {{#if variables.estAFDRSeul}}<li>1-877-767-8773 (toll-free);</li>{{/if}}
+          {{#if variables.estAFDRetEQ}}<li>1-877-767-8773 (toll-free);</li>{{/if}}
+          {{#if variables.estEQSeul}}<li>1-877-644-4545 (toll-free);</li>{{/if}}
+          <li>1-800-361-9596 (service for the hearing impaired, TTY - toll-free);</li>
+        </ul>
+      </li>
+      <li>Through our online services: <a href="https://mondossier.mtess.gouv.qc.ca/en">mondossier.mtess.gouv.qc.ca</a></li>
+    </ul>
+    <p>
+        {{#if variables.estAFDRSeul}}<a href="https://www.quebec.ca/en/family-and-support-for-individuals/social-assistance-social-solidarity/online-services?utm_campaign=mondossieraeas_jan21&utm_medium=all&utm_source=confirmation_3003" target="_blank"><img src="https://mondossier.mtess.gouv.qc.ca/images/courriel/bandeau_asf.png" width="650" height="150" alt="Vous êtes prestataire d'un programme d'aide sociale ou de solidarité sociale, utilisez nos services en ligne en vous inscrivant à Mon dossier - Aide à l'emploi - Assistance sociale" border="0" /></a>{{/if}}
+        {{#if variables.estAFDRetEQ}}<a href="https://www.quebec.ca/en/family-and-support-for-individuals/social-assistance-social-solidarity/online-services?utm_campaign=mondossieraeas_jan21&utm_medium=all&utm_source=confirmation_3003" target="_blank"><img src="https://mondossier.mtess.gouv.qc.ca/images/courriel/bandeau_asf.png" width="650" height="150" alt="Vous êtes prestataire d'un programme d'aide sociale ou de solidarité sociale, utilisez nos services en ligne en vous inscrivant à Mon dossier - Aide à l'emploi - Assistance sociale" border="0" /></a>{{/if}}
+        {{#if variables.estEQSeul}}<a href="https://www.quebec.ca/en/employment/job-search-tips/employment-assistance/online-services?utm_campaign=mondossieraeas_jan21&utm_medium=all&utm_source=confirmation_3003" target="_blank"><img src="https://mondossier.mtess.gouv.qc.ca/images/courriel/bandeau_eq.png" width="650" height="150" alt="Vous êtes prestataire d'un programme d'aide sociale ou de solidarité sociale, utilisez nos services en ligne en vous inscrivant à Mon dossier - Aide à l'emploi - Assistance sociale" border="0" /></a>{{/if}}
+    </p>
+    <p>This email is automated. Do not reply to this email.</p>

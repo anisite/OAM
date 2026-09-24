@@ -9,6 +9,12 @@ public static class NomsActivites
     public const string Courriel = "oim.courriel";
     public const string Reponse = "oim.reponse";
 
+    /// <summary>Étapes dédiées (chargerDocuments, apparierGdi…) : appel du service configuré.</summary>
+    public const string Service = "oim.service";
+
+    /// <summary>Étape boiteGenerique : adresse de la boîte retenue (bloc ou table BSQ).</summary>
+    public const string ResoudreBoite = "oim.resoudreBoite";
+
     /// <summary>Événement qui simule l'expiration d'un délai d'attente (mode test uniquement).</summary>
     public const string ExpirationSimulee = "oim:delaiExpire";
 }
@@ -24,6 +30,9 @@ public sealed class EntreeOrchestration
     /// <list type="bullet">
     ///   <item>1 : version initiale.</item>
     ///   <item>2 : l'étape « reponse » trace une activité oim.reponse dans l'historique.</item>
+    ///   <item>(sans changement de version) nouveaux types d'étapes chargerDocuments, apparierGdi,
+    ///   validerDossierAnterieur, genererPageGarde, deposerGed (activité oim.service) et boiteGenerique
+    ///   (oim.resoudreBoite + oim.courriel) : aucune instance existante ne les utilise, leur historique est inchangé.</item>
     /// </list>
     /// </summary>
     public const int VersionMoteurCourante = 2;

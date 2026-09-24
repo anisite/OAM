@@ -12,7 +12,7 @@ Ancienne version (moteur maison) : `../OAM/OAM` — référence métier seulemen
 sqllocaldb start OIM                      # instance dédiée : (localdb)\MSSQLLocalDB refuse les connexions (logon trigger)
 cd sources/OIM.Api; dotnet run            # http://localhost:5080, déploie ../../definitions au démarrage
 cd sources/OIM.Frontend; npm run dev      # http://localhost:5173 (proxy /api)
-dotnet test OIM.slnx                      # 69 tests; intégration sur (localdb)\OIM, base OIM_Tests
+dotnet test OIM.slnx                      # 89 tests; intégration sur (localdb)\OIM, base OIM_Tests
 ```
 
 - Arrêter l'API (`taskkill /F /IM OIM.Api.exe`) avant `dotnet build` : elle verrouille `OIM.Moteur.dll`.
@@ -72,6 +72,9 @@ dotnet test OIM.slnx                      # 69 tests; intégration sur (localdb)
 
 ## Pistes non faites
 
+- ECS25A : `definitions/ecs/frw-3003` seulement (tests sur mocks). Services de `TypesService` à exposer et brancher
+  (`Oim:Services`), URL des gabarits http à confirmer; PJ du courriel de confirmation et événement d'affaire CAC non repris.
+  Autres formulaires (TRDOC, 6478, 6505, 3002, SR2604, SR2609, 6666, `*.confirmation`) à convertir.
 - Lire le format Markdown des cas de test d'OAM (`workflows/tests.*.md`).
 - Limiter le contexte tracé par `oim.reponse` aux seules valeurs utilisées (données personnelles, volume).
 - Base SQL pour les tests d'intégration en CI (sinon « non concluants »).

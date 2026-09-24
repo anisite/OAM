@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=../../../../schemas/cas-test.schema.json
+nom: AFDR et EQ, BSQ décloisonné pour l'ASF — confirmation en anglais, pas de boîte générique
+entrees:
+  ide: "300312350"
+  langue: en
+  courrielClient: client@example.com
+  champs:
+    form_TypeDemande_0: Afdr
+    form_TypeDemande_1: AideEmploi
+    form_adulte1Adresse_0_CodePostal: J1H 1A1
+
+mocks:
+  localiser: { statut: 200, corps: { region: "05", cleJuridiction: "120", decloisonne: { ASF: true, EQ: false } } }
+  apparier: { resultat: Unique, noGdi: 7654321 }
+  dossierAnterieur: { asf: { presence: false } }
+  documents: { documents: [], pjManquantes: [], afficherPjManquantes: false }
+  pageGarde: { document: { nom: pg.pdf, nomOriginal: Confirmation_Authentification.pdf, source: genererPageGarde } }
+  liens: { statut: 200, corps: { secretGed: s, urlAvancement: { fr: "https://a/fr", en: "https://a/en" }, urlDocuments: { ASF: "https://d", EQ: "https://d" } } }
+  ged: { soumissions: [] }
+  conserver: { statut: 200, corps: {} }
+
+attendu:
+  statut: Completed
+  parcours: [localiser, calcules, calculesFinaux, decloisonnement, apparier, resultatGdi, dossierAnterieur, documents, pageGarde, liens, ged, confirmation, conserver, repondre]
+  variables: { estAFDRetEQ: true, equipe: DD, ligneAffaire: ASF, estBureauDecloisonne: true }
+  courriels:
+    - gabarit: gabarits/confirmation-client.yml
+      a: [client@example.com]
+      sujet: Acknowledgment of receipt for your application for financial assistance and for employment services form
+  reponse: { corps: { ligneAffaire: ASF, estBureauDecloisonne: true, possedeGDI: true } }

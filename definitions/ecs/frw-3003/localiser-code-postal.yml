@@ -1,0 +1,11 @@
+# Région administrative, CLE de juridiction et bureau décloisonné d'un code postal
+# (équivalents des helpers ECS25A RegionAdministrative, CleJuridiction et EstBsqDecloisonne).
+# Contrat attendu : { "region": "04", "cleJuridiction": "045", "decloisonne": { "ASF": false, "EQ": true } }
+# À brancher sur l'endpoint ECS à exposer (PMT : table des codes postaux, UNP100A pour le décloisonnement).
+http_client:
+  localiser:
+    method: GET
+    url: https://ecs-services.mess.reseau.intra/api/v1/Localisation/CodePostal/{{codePostal}}
+    use_default_credentials: true
+    headers:
+      Accept: application/json

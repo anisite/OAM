@@ -1,8 +1,7 @@
 # OIM — build et déploiement IIS, sur le modèle des releases classiques de GED
 # (Release.GED.Complet.Satellite.master et Release.GED.Complet.release) :
 #
-#   toute branche → Build
-#   main       → Build → SAT
+#   toute branche (sauf release/*) → Build → SAT
 #   release/*  → Build → ACCP → IT (bascule A/B) → PROD (bascule A/B) → ACCP ligne PROD
 #   PR         → Build seulement
 #
@@ -126,7 +125,8 @@ stages:
   - stage: SAT
     displayName: 'SAT'
     dependsOn: Build
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    # Toute branche (sauf PR et release/*, qui passent par ACCP) est déployée automatiquement en SAT.
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), not(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/')))
     variables:
       - group: OIM.Parametres.General
       - group: OIM.Parametres.sat

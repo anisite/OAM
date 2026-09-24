@@ -1,6 +1,7 @@
 # OIM — build et déploiement IIS, sur le modèle des releases classiques de GED
 # (Release.GED.Complet.Satellite.master et Release.GED.Complet.release) :
 #
+#   toute branche → Build
 #   main       → Build → SAT
 #   release/*  → Build → ACCP → IT (bascule A/B) → PROD (bascule A/B) → ACCP ligne PROD
 #   PR         → Build seulement
@@ -24,8 +25,7 @@ trigger:
   batch: true
   branches:
     include:
-      - main
-      - release/*
+      - '*'         # toutes les branches; les déploiements dépendent de la branche (voir les étapes)
 
 pr:
   branches:

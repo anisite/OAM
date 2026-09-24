@@ -11,7 +11,7 @@ instances, concepteur par glisser-déposer).
 └──────────────────────────────────────────┬─────────────────────────────────────────────────┘
                                            │ /api (servi par OIM.Api, même site IIS)
 ┌──────────────────────────────────────────▼─────────────────────────────────────────────────┐
-│ OIM.Api — minimal APIs, Windows (Negotiate), ProblemDetails                                │
+│ OIM.Api — minimal APIs, jeton Bearer (émis par auth. Windows), ProblemDetails              │
 ├────────────────────────────────────────────────────────────────────────────────────────────┤
 │ OIM.Moteur                                                                                  │
 │  Definitions   lecture/validation YAML, paquet (YAML + gabarits), durées, entrées          │
@@ -228,6 +228,18 @@ Les instances en cours restent sur leur version; les nouvelles utilisent la vers
 
 ## API
 
+**Authentification.** Toutes les routes `/api` exigent un jeton `Authorization: Bearer`, obtenu
+par authentification Windows (Negotiate) :
+
+| | |
+|---|---|
+| `GET /api/auth/jeton` | `{ jeton, expiration, utilisateur, roles }` : JWT HS256 signé par OIM; `roles` = groupes de `Securite:Groupes` dont l'utilisateur est membre (403 s'il n'est membre d'aucun) |
+| `GET /api/auth/jeton-dev` | développement seulement : jeton au nom du compte local (le proxy Vite ne relaie pas la négociation Windows) |
+
+Un service .NET l'obtient avec son compte de service
+(`new HttpClient(new HttpClientHandler { UseDefaultCredentials = true })`), puis le renouvelle avant
+`expiration`. L'interface le garde en mémoire et le renouvelle automatiquement.
+
 **Applications clientes**
 
 | | |
@@ -296,8 +308,11 @@ Les en-têtes `X-Oim-Instance` et `Location` donnent toujours l'instance. L'atte
 | `Courriel:DossierDepot` | | écrit des `.eml` au lieu d'envoyer |
 | `Courriel:RedirigerVers` | | redirige tous les courriels (environnements de test) |
 | `Tests:AuDeploiement` | `Bloquant` | tests métier au déploiement : `Bloquant`, `Avertissement`, `Desactive` |
-| `Securite:Active` | `true` | authentification Windows (Negotiate) |
-| `Securite:Groupes` | `[]` | groupes AD autorisés (vide = tout utilisateur authentifié) |
+| `Securite:Active` | `true` | jeton Bearer exigé sur `/api` |
+| `Securite:Groupes` | `[]` | groupes AD autorisés, en `DOMAINE\Groupe` (vide = tout utilisateur authentifié) |
+| `Securite:Jeton:Cle` | | clé de signature HS256, ≥ 32 caractères, **identique sur tous les nœuds**; hors du dépôt (variable `Oim__Securite__Jeton__Cle`, secret du pipeline) |
+| `Securite:Jeton:Emetteur`, `Audience` | `OIM` | |
+| `Securite:Jeton:DureeMinutes` | `480` | durée de vie du jeton |
 
 ## Production (IIS)
 
@@ -306,7 +321,9 @@ cd sources/OIM.Frontend; npm ci; npm run build     # → sources/OIM.Api/wwwroot
 cd ../OIM.Api; dotnet publish -c Release -o ./publish
 ```
 
-Un seul site IIS (API + interface). Activer l'authentification Windows sur le site.
+Un seul site IIS (API + interface). Activer **à la fois** l'authentification Windows (pour
+`/api/auth/jeton`) et l'authentification anonyme (les autres routes portent un jeton Bearer, que
+IIS ne doit pas intercepter). Définir `Oim:Securite:Jeton:Cle`.
 
 ### Base de données
 

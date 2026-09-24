@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.AspNetCore.Diagnostics;
 using OIM.Api;
 using OIM.Moteur.Hebergement;
@@ -24,19 +23,10 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
-// Sécurité : authentification Windows (Negotiate) et, optionnellement, appartenance à un groupe AD.
-var securite = builder.Configuration.GetSection("Oim:Securite");
-var securiteActive = securite.GetValue("Active", true);
-if (securiteActive)
-{
-    builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
-    builder.Services.AddAuthorization(o => o.AddPolicy(Securite.Politique, p =>
-    {
-        p.RequireAuthenticatedUser();
-        var groupes = securite.GetSection("Groupes").Get<string[]>() ?? [];
-        if (groupes.Length > 0) p.RequireRole(groupes);
-    }));
-}
+// Sécurité : jeton Bearer obtenu par authentification Windows et, optionnellement, appartenance à un groupe AD.
+var securite = builder.Configuration.GetSection(OptionsSecurite.Section).Get<OptionsSecurite>() ?? new OptionsSecurite();
+if (securite.Active)
+    builder.Services.AjouterSecurite(securite);
 
 var app = builder.Build();
 
@@ -56,7 +46,7 @@ app.UseExceptionHandler(e => e.Run(async contexte =>
         extensions: details.Count > 0 ? new Dictionary<string, object?> { ["details"] = details } : null).ExecuteAsync(contexte);
 }));
 
-if (securiteActive)
+if (securite.Active)
 {
     app.UseAuthentication();
     app.UseAuthorization();
@@ -68,8 +58,10 @@ app.UseStaticFiles();
 if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
+app.MapAuth(securite, app.Environment);
+
 var api = app.MapGroup("/api");
-if (securiteActive) api.RequireAuthorization(Securite.Politique);
+if (securite.Active) api.RequireAuthorization(Securite.Politique);
 
 // Erreurs fonctionnelles (400/404/409) : réponse ProblemDetails sans journaliser d'erreur technique.
 api.AddEndpointFilter(async (contexte, suivant) =>
@@ -92,7 +84,8 @@ api.AddEndpointFilter(async (contexte, suivant) =>
 api.MapDefinitions();
 api.MapInstances();
 
-// Application Vue (routage côté client)
+// Application Vue (routage côté client); une route d'API inconnue reste un 404.
+app.MapFallback("/api/{**chemin}", () => Results.NotFound());
 app.MapFallbackToFile("index.html");
 
 app.Run();

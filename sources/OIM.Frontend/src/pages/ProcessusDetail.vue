@@ -18,7 +18,9 @@
             Démarrer une instance
           </button>
           <router-link :to="`/concepteur/${encodeURIComponent(detail.id)}`" class="utd-btn secondaire compact">Ouvrir dans le concepteur</router-link>
-          <a :href="api.urlZip(detail.id, detail.version)" class="utd-btn secondaire compact">Télécharger (.zip)</a>
+          <button type="button" class="utd-btn secondaire compact" @click="api.telechargerZip(detail.id, detail.version)">
+            Télécharger (.zip)
+          </button>
           <button v-if="resume" type="button" class="utd-btn tertiaire comme-lien compact" @click="basculerActif">
             {{ resume.actif ? 'Désactiver' : 'Activer' }}
           </button>

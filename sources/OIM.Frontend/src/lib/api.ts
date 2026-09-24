@@ -1,3 +1,4 @@
+import { enteteAutorisation } from './auth'
 import type {
   DefinitionDetail,
   EvenementHistorique,
@@ -22,16 +23,25 @@ export class ErreurApi extends Error {
   }
 }
 
-async function appel<T>(methode: string, url: string, corps?: unknown): Promise<T> {
-  const init: RequestInit = { method: methode, credentials: 'include', headers: {} }
+/** Appel authentifié; sur 401 (jeton expiré ou clé changée), un nouveau jeton est demandé une fois. */
+async function envoyer(methode: string, url: string, corps?: unknown): Promise<Response> {
+  const init: RequestInit = { method: methode }
+  const entetes: Record<string, string> = {}
   if (corps instanceof FormData) {
     init.body = corps
   } else if (corps !== undefined) {
     init.body = JSON.stringify(corps)
-    ;(init.headers as Record<string, string>)['Content-Type'] = 'application/json'
+    entetes['Content-Type'] = 'application/json'
   }
 
-  const reponse = await fetch(`/api${url}`, init)
+  let reponse = await fetch(`/api${url}`, { ...init, headers: { ...entetes, ...(await enteteAutorisation()) } })
+  if (reponse.status === 401)
+    reponse = await fetch(`/api${url}`, { ...init, headers: { ...entetes, ...(await enteteAutorisation(true)) } })
+  return reponse
+}
+
+async function appel<T>(methode: string, url: string, corps?: unknown): Promise<T> {
+  const reponse = await envoyer(methode, url, corps)
   const texte = await reponse.text()
   const json = texte ? JSON.parse(texte) : undefined
 
@@ -101,5 +111,15 @@ export const api = {
     return appel<ReponseDeploiement>('POST', `/definitions/zip${qs({ commentaire })}`, f)
   },
   activer: (id: string, actif: boolean) => appel<void>('PUT', `/definitions/${enc(id)}/actif`, { actif }),
-  urlZip: (id: string, version?: number) => `/api/definitions/${enc(id)}/zip${qs({ version })}`
+  /** Téléchargement du paquet : un lien simple ne transmettrait pas le jeton. */
+  telechargerZip: async (id: string, version?: number) => {
+    const reponse = await envoyer('GET', `/definitions/${enc(id)}/zip${qs({ version })}`)
+    if (!reponse.ok) throw new ErreurApi(`Erreur ${reponse.status}`, reponse.status)
+    const nom = /filename\*?=(?:UTF-8'')?"?([^";]+)/i.exec(reponse.headers.get('Content-Disposition') ?? '')?.[1]
+    const lien = document.createElement('a')
+    lien.href = URL.createObjectURL(await reponse.blob())
+    lien.download = nom ? decodeURIComponent(nom) : `${id}.zip`
+    lien.click()
+    URL.revokeObjectURL(lien.href)
+  }
 }

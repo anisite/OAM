@@ -38,6 +38,17 @@
                 <router-link to="/admin/equipes">Administration</router-link>
               </utd-menu-horizontal-item>
             </utd-menu-horizontal>
+
+            <!-- Profil de l'utilisateur, comme dans GCO. -->
+            <div v-if="moi" class="utd-zone-raccourcis-connexion">
+              <div class="utd-zone-raccourcis">
+                <router-link to="/profil" class="utd-lien-profil-utilisateur">
+                  <span class="utd-icone-svg utilisateur-blanc" aria-hidden="true"></span>
+                  <span class="nom-utilisateur">{{ moi.utilisateur }}</span>
+                  <span class="utd-sr-only">&nbsp;Accéder à votre profil</span>
+                </router-link>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -92,5 +103,21 @@ watch(() => route.path, majPath)
 <style>
 .utd-conteneur-principal {
   min-height: calc(100vh - 233px);
+}
+
+/* Lien de profil dans le bandeau (repris de GCO, en attendant qu'UTD le fournisse). */
+.utd-bandeau-principal .utd-zone-raccourcis-connexion .utd-zone-raccourcis a.utd-lien-profil-utilisateur {
+  width: auto;
+  white-space: nowrap;
+  padding: 0 8px;
+  color: #fff;
+  text-decoration: none !important;
+}
+.utd-bandeau-principal .utd-zone-raccourcis-connexion .utd-zone-raccourcis a.utd-lien-profil-utilisateur:hover:after {
+  width: 100%;
+  left: 0;
+}
+.utd-bandeau-principal .utd-zone-raccourcis-connexion .utd-zone-raccourcis a.utd-lien-profil-utilisateur .utd-icone-svg {
+  margin-right: 8px;
 }
 </style>

@@ -14,7 +14,7 @@ public static partial class IdsEquipe
     public const char Separateur = '.';
 
     /// <summary>Segments d'URL de l'interface qui ne peuvent pas être des ids d'équipe.</summary>
-    private static readonly HashSet<string> Reserves = ["admin", "accessibilite", "api", "auth", "assets"];
+    private static readonly HashSet<string> Reserves = ["admin", "accessibilite", "profil", "api", "auth", "assets", "scalar", "openapi"];
 
     [GeneratedRegex("^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$")]
     private static partial Regex FormatEquipe();

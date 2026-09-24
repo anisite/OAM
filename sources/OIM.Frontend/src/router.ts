@@ -12,10 +12,11 @@ const introuvable = () => import('@/pages/PageNonTrouvee.vue')
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    // Accueil : choix de l'équipe. Les segments fixes (admin, accessibilite) sont des ids d'équipe réservés.
+    // Accueil : choix de l'équipe. Les segments fixes (admin, accessibilite, profil) sont des ids d'équipe réservés.
     { path: '/', component: () => import('@/pages/Accueil.vue'), meta: { titre: 'Choix de l’équipe' } },
     { path: '/admin/equipes', component: () => import('@/pages/AdminEquipes.vue'), meta: { titre: 'Équipes' } },
     { path: '/accessibilite', component: () => import('@/pages/Accessibilite.vue'), meta: { titre: 'Accessibilité' } },
+    { path: '/profil', component: () => import('@/pages/Profil.vue'), meta: { titre: 'Mon profil' } },
 
     // Anciennes adresses, sans équipe.
     { path: '/instances/:reste(.*)*', redirect: '/' },

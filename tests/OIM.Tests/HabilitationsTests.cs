@@ -61,7 +61,7 @@ public sealed class HabilitationsTests
     {
         foreach (var id in new[] { "sgd", "equipe-2", "a" })
             Assert.IsTrue(IdsEquipe.EstIdEquipeValide(id), id);
-        foreach (var id in new[] { "", "Sgd", "a.b", "-a", "a-", "admin", "accessibilite", new string('a', 51), "é" })
+        foreach (var id in new[] { "", "Sgd", "a.b", "-a", "a-", "admin", "accessibilite", "profil", new string('a', 51), "é" })
             Assert.IsFalse(IdsEquipe.EstIdEquipeValide(id), id);
     }
 }
